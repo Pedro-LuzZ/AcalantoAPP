@@ -1,0 +1,25 @@
+# Arquivos de log e dependências
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Arquivos de ambiente - MUITO IMPORTANTE!
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Banco de dados SQLite
+*.db
+*.db-journal
+
+# Arquivos de build e cache
+dist/
+build/
+.vite/
+.vercel/
+
+# Arquivos do sistema operacional
+.DS_Store
+Thumbs.db
