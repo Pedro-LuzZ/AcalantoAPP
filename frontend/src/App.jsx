@@ -2,7 +2,7 @@ import { Routes, Route, Link } from 'react-router-dom';
 import Home from './pages/Home';
 import PatientList from './pages/PatientList';
 import PatientDetail from './pages/PatientDetail';
-import AllReports from './pages/AllReports'; // Importa a nova página
+import AllReports from './pages/AllReports';
 import './App.css'; 
 
 function App() {
@@ -13,7 +13,7 @@ function App() {
       <nav className="main-nav">
         <Link to="/">Cadastrar Paciente</Link>
         <Link to="/pacientes">Ver Lista de Pacientes</Link>
-        <Link to="/relatorios">Todos os Relatórios</Link> {/* Adiciona o novo link */}
+        <Link to="/relatorios">Todos os Relatórios</Link>
       </nav>
 
       <hr />
@@ -22,7 +22,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/pacientes" element={<PatientList />} />
-          <Route path="/relatorios" element={<AllReports />} /> {/* Adiciona a nova rota */}
+          <Route path="/relatorios" element={<AllReports />} />
           <Route path="/paciente/:id" element={<PatientDetail />} />
         </Routes>
       </main>
