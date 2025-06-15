@@ -4,22 +4,9 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import '../App.css';
 
-// Função para pegar a data de hoje no formato YYYY-MM-DD
-const getTodayDateString = () => {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-// Função para pegar a hora atual no formato HH:MM
-const getCurrentTimeString = () => {
-  const now = new Date();
-  const hours = String(now.getHours()).padStart(2, '0');
-  const minutes = String(now.getMinutes()).padStart(2, '0');
-  return `${hours}:${minutes}`;
-};
+// Importando nossos novos componentes
+import ReportList from '../components/ReportList';
+import AddReportForm from '../components/AddReportForm';
 
 function PatientDetail() {
   const { id } = useParams();
@@ -29,20 +16,11 @@ function PatientDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const [novoRelatorio, setNovoRelatorio] = useState({
-    data: getTodayDateString(),
-    hora: getCurrentTimeString(),
-    periodo: 'Manhã',
-    alimentacao: '',
-    temperatura: '',
-    pressao: '',
-    observacoes: '',
-    responsavel: ''
-  });
-
+  // Estados para o modal de edição do paciente
   const [isEditing, setIsEditing] = useState(false);
   const [editFormData, setEditFormData] = useState({});
 
+  // Função para buscar todos os dados da página
   const fetchData = () => {
     setLoading(true);
     const fetchPatientDetail = axios.get(`http://localhost:3001/api/pacientes/${id}`);
@@ -67,27 +45,12 @@ function PatientDetail() {
     fetchData();
   }, [id]);
 
-  const handleRelatorioInputChange = (event) => {
-    const { name, value } = event.target;
-    setNovoRelatorio({ ...novoRelatorio, [name]: value });
-  };
-
-  const handleRelatorioSubmit = (event) => {
-    event.preventDefault();
-    axios.post(`http://localhost:3001/api/pacientes/${id}/relatorios`, novoRelatorio)
+  // A função de submit agora recebe os dados do componente filho (AddReportForm)
+  const handleRelatorioSubmit = (dadosDoFormulario) => {
+    axios.post(`http://localhost:3001/api/pacientes/${id}/relatorios`, dadosDoFormulario)
       .then(() => {
         toast.success('Relatório salvo com sucesso!');
-        fetchData(); 
-        setNovoRelatorio({ 
-          data: getTodayDateString(), 
-          hora: getCurrentTimeString(),
-          periodo: 'Manhã', 
-          alimentacao: '', 
-          temperatura: '', 
-          pressao: '', 
-          observacoes: '', 
-          responsavel: '' 
-        });
+        fetchData(); // Recarrega os dados para mostrar o novo relatório na lista
       })
       .catch(err => {
         console.error('Erro ao cadastrar relatório:', err);
@@ -95,6 +58,7 @@ function PatientDetail() {
       });
   };
 
+  // Funções para o modal de EDIÇÃO DE PACIENTE
   const handleEditPatientClick = () => {
     setEditFormData(paciente);
     setIsEditing(true);
@@ -136,6 +100,7 @@ function PatientDetail() {
 
   return (
     <div>
+      {/* Modal de Edição do Paciente (lógica inalterada) */}
       {isEditing && (
         <div className="modal-backdrop">
           <div className="modal">
@@ -159,6 +124,7 @@ function PatientDetail() {
         </div>
       )}
 
+      {/* Card de Detalhes do Paciente (lógica inalterada) */}
       <div className="patient-detail-card">
         <h1>{paciente.nome}</h1>
         <button onClick={handleEditPatientClick} className="edit-btn" style={{marginBottom: '1rem', padding: '10px 15px'}}>Editar Dados do Paciente</button>
@@ -176,45 +142,11 @@ function PatientDetail() {
         <Link to="/pacientes" className="back-link">Voltar para a Lista de Pacientes</Link>
       </div>
 
-      <form onSubmit={handleRelatorioSubmit} className="report-form">
-        <h2>Adicionar Relatório Diário</h2>
-        <div className="form-row">
-          <input type="date" name="data" value={novoRelatorio.data} onChange={handleRelatorioInputChange} />
-          <input type="time" name="hora" value={novoRelatorio.hora} onChange={handleRelatorioInputChange} />
-          <select name="periodo" value={novoRelatorio.periodo} onChange={handleRelatorioInputChange}>
-            <option value="Manhã">Manhã</option>
-            <option value="Noite">Noite</option>
-          </select>
-        </div>
-        <textarea name="alimentacao" placeholder="Alimentação" value={novoRelatorio.alimentacao} onChange={handleRelatorioInputChange}></textarea>
-        <div className="form-row">
-          <input type="text" name="temperatura" placeholder="Temperatura (ex: 36.5)" value={novoRelatorio.temperatura} onChange={handleRelatorioInputChange} />
-          <input type="text" name="pressao" placeholder="Pressão (ex: 120/80)" value={novoRelatorio.pressao} onChange={handleRelatorioInputChange} />
-        </div>
-        <textarea name="observacoes" placeholder="Observações gerais..." value={novoRelatorio.observacoes} onChange={handleRelatorioInputChange} required></textarea>
-        <input type="text" name="responsavel" placeholder="Responsável (ex: Enf. Ana)" value={novoRelatorio.responsavel} onChange={handleRelatorioInputChange} />
-        <button type="submit" className="save-btn">Salvar Relatório</button>
-      </form>
+      {/* O formulário de relatório agora é um componente separado */}
+      <AddReportForm onReportSubmit={handleRelatorioSubmit} />
 
-      <div className="reports-section">
-        <h2>Histórico de Relatórios Diários</h2>
-        {relatorios.length > 0 ? (
-          <ul className="report-list">
-            {relatorios.map(relatorio => (
-              <li key={relatorio.id} className="report-item">
-                <h3>{new Date(relatorio.data).toLocaleDateString('pt-BR', {timeZone: 'UTC'})} às {relatorio.hora} - {relatorio.periodo}</h3>
-                <p><strong>Alimentação:</strong> {relatorio.alimentacao}</p>
-                <p><strong>Temperatura:</strong> {relatorio.temperatura} °C</p>
-                <p><strong>Pressão:</strong> {relatorio.pressao}</p>
-                <p><strong>Observações:</strong> {relatorio.observacoes}</p>
-                <p><small>Responsável: {relatorio.responsavel}</small></p>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>Nenhum relatório cadastrado para este paciente.</p>
-        )}
-      </div>
+      {/* A lista de relatórios agora é um componente separado */}
+      <ReportList relatorios={relatorios} />
     </div>
   );
 }

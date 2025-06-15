@@ -285,3 +285,46 @@ hr {
   font-weight: bold;
   cursor: pointer;
 }
+
+/* Estilos para o Formulário de Filtros */
+.filter-form {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  display: flex;
+  flex-wrap: wrap; /* Permite que os itens quebrem a linha em telas menores */
+  gap: 20px;
+  align-items: flex-end; /* Alinha os itens na parte de baixo */
+}
+
+.filter-form .form-group {
+  flex: 1; /* Faz com que os grupos de filtro ocupem o espaço disponível */
+  min-width: 200px; /* Largura mínima para cada filtro */
+}
+
+.filter-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* Adicione ou modifique este bloco no seu App.css */
+
+.filter-actions button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  color: white;
+}
+
+/* Botão de Limpar Filtros (Secundário) */
+.filter-actions button[type="button"] {
+  background-color: #6c757d; /* Cinza */
+}
+.filter-actions button[type="button"]:hover {
+  background-color: #5a6268;
+}
