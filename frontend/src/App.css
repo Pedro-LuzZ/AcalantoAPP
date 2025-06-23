@@ -253,8 +253,10 @@ hr {
   background-color: rgba(0, 0, 0, 0.7);
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start; /* Alinha o modal no topo, melhor para conteúdo longo */
+  padding: 5vh 0;         /* Adiciona um espaçamento no topo e embaixo */
   z-index: 1000;
+  overflow-y: auto;
 }
 
 .modal {
@@ -263,8 +265,12 @@ hr {
   padding: 2rem;
   border-radius: 8px;
   width: 90%;
-  max-width: 600px;
+  max-width: 700px; /* Aumentei um pouco para caber melhor o formulário */
   box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  
+  /* As 2 linhas abaixo são a mágica para a rolagem interna */
+  max-height: 90vh;  /* O modal não pode ser mais alto que 90% da tela */
+  overflow-y: auto;
 }
 
 .modal h2 {
@@ -327,4 +333,64 @@ hr {
 }
 .filter-actions button[type="button"]:hover {
   background-color: #5a6268;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.action-btn {
+  /* ... pode usar o estilo do .save-btn ou criar um novo ... */
+}
+.form-group div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+.form-group div label {
+    margin-right: 5px;
+}
+
+/* Estilos para o novo formulário de Evolução */
+.evolution-form fieldset {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.evolution-form legend {
+  font-weight: bold;
+  padding: 0 0.5rem;
+  margin-left: 0.5rem;
+  color: #495057;
+}
+
+/* Garante que os campos de marcar fiquem alinhados com seus textos */
+.input-group {
+   display: flex;
+  align-items: center; /* Mantém o alinhamento vertical */
+  gap: 8px;            /* Um pequeno espaço entre o campo e o texto */
+  width: fit-content;
+}
+.input-group label {
+  margin-bottom: 0; /* Remove qualquer margem padrão que possa estar atrapalhando */
+  padding-top: 2px; /* Pequeno ajuste para alinhar o texto perfeitamente com o centro do radio/checkbox */
+  cursor: pointer;
+}
+
+/* Organiza os campos em um grid para melhor aproveitamento do espaço */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.input-group-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px; /* Espaçamento entre as opções */
 }

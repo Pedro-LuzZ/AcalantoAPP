@@ -4,15 +4,15 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import Home from './pages/Home';
-import PatientList from './pages/PatientList';
-import PatientDetail from './pages/PatientDetail';
+import ResidentList from './pages/ResidentList'; // MUDOU
+import ResidentDetail from './pages/ResidentDetail'; // MUDOU
 import AllReports from './pages/AllReports';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import AddReportModal from './components/AddReportModal';
 import { useAuth } from './context/AuthContext';
-import './App.css';
+import './App.css'; 
 
 function App() {
   const { isLoggedIn, logout } = useAuth();
@@ -30,13 +30,13 @@ function App() {
       
       {isReportModalOpen && <AddReportModal closeModal={() => setIsReportModalOpen(false)} />}
       
-      <h1>Acalanto Residence - Gestão de Pacientes</h1>
+      <h1>Acalanto Residence - Gestão de Residentes</h1>
       
       <nav className="main-nav">
         {isLoggedIn && (
           <>
-            <Link to="/">Cadastrar Paciente</Link>
-            <Link to="/pacientes">Ver Lista de Pacientes</Link>
+            <Link to="/">Cadastrar Residente</Link>
+            <Link to="/pacientes">Ver Lista de Residentes</Link>
             <Link to="/relatorios">Todos os Relatórios</Link>
             <button onClick={() => setIsReportModalOpen(true)} className="quick-action-btn">Adicionar Relatório</button>
           </>
@@ -56,13 +56,18 @@ function App() {
 
       <main>
         <Routes>
+          {/* Rotas Públicas */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/registrar" element={<RegisterPage />} />
+
+          {/* Rotas Protegidas */}
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<Home />} />
-            <Route path="/pacientes" element={<PatientList />} />
+            {/* A URL continua /pacientes, mas o componente agora é ResidentList */}
+            <Route path="/pacientes" element={<ResidentList />} /> 
             <Route path="/relatorios" element={<AllReports />} />
-            <Route path="/paciente/:id" element={<PatientDetail />} />
+            {/* A URL continua /paciente/:id, mas o componente agora é ResidentDetail */}
+            <Route path="/paciente/:id" element={<ResidentDetail />} />
           </Route>
         </Routes>
       </main>

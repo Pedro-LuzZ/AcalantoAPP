@@ -1,16 +1,12 @@
-import { useState, useEffect } from 'react';
+// frontend/src/components/AddDailyReportModal.jsx
+
+import { useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import '../App.css';
 
-const getTodayDateString = () => {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
+// Funções para data e hora
+const getTodayDateString = () => new Date().toISOString().split('T')[0];
 const getCurrentTimeString = () => {
   const now = new Date();
   const hours = String(now.getHours()).padStart(2, '0');
@@ -18,9 +14,8 @@ const getCurrentTimeString = () => {
   return `${hours}:${minutes}`;
 };
 
-function AddReportModal({ closeModal, onReportAdded }) {
-  const [residentes, setResidentes] = useState([]);
-  const [selectedResidentId, setSelectedResidentId] = useState('');
+// O componente agora recebe o residente, uma função para fechar e uma para salvar
+function AddDailyReportModal({ residente, closeModal, onSave }) {
   const [novoRelatorio, setNovoRelatorio] = useState({
     data: getTodayDateString(),
     hora: getCurrentTimeString(),
@@ -32,17 +27,6 @@ function AddReportModal({ closeModal, onReportAdded }) {
     responsavel: ''
   });
 
-  useEffect(() => {
-    axios.get('http://localhost:3001/api/pacientes')
-      .then(response => {
-        setResidentes(response.data);
-      })
-      .catch(error => {
-        console.error("Erro ao buscar residentes para o modal:", error);
-        toast.error("Não foi possível carregar a lista de residentes.");
-      });
-  }, []);
-
   const handleInputChange = (event) => {
     const { name, value } = event.target;
     setNovoRelatorio({ ...novoRelatorio, [name]: value });
@@ -50,16 +34,11 @@ function AddReportModal({ closeModal, onReportAdded }) {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    if (!selectedResidentId) {
-      toast.warn('Por favor, selecione um residente.');
-      return;
-    }
-
-    axios.post(`http://localhost:3001/api/pacientes/${selectedResidentId}/relatorios`, novoRelatorio)
+    axios.post(`http://localhost:3001/api/pacientes/${residente.id}/relatorios`, novoRelatorio)
       .then(() => {
         toast.success('Relatório salvo com sucesso!');
-        if (onReportAdded) onReportAdded();
-        closeModal();
+        if (onSave) onSave(); // Avisa o componente pai para atualizar os dados
+        closeModal(); // Fecha o modal
       })
       .catch(err => {
         console.error('Erro ao cadastrar relatório:', err);
@@ -70,30 +49,14 @@ function AddReportModal({ closeModal, onReportAdded }) {
   return (
     <div className="modal-backdrop">
       <div className="modal">
-        <h2>Adicionar Relatório Diário Rápido</h2>
+        <h2>Adicionar Relatório Diário - {residente.nome}</h2>
         <form onSubmit={handleSubmit} className="report-form">
-          
-          <label htmlFor="resident-select">Selecione o Residente:</label>
-          <select
-            id="resident-select"
-            value={selectedResidentId}
-            onChange={(e) => setSelectedResidentId(e.target.value)}
-            required
-          >
-            <option value="" disabled>-- Escolha um residente --</option>
-            {residentes.map(residente => (
-              <option key={residente.id} value={residente.id}>{residente.nome}</option>
-            ))}
-          </select>
-          
-          <hr/>
-
           <div className="form-row">
             <input type="date" name="data" value={novoRelatorio.data} onChange={handleInputChange} />
             <input type="time" name="hora" value={novoRelatorio.hora} onChange={handleInputChange} />
             <select name="periodo" value={novoRelatorio.periodo} onChange={handleInputChange}>
-              <option value="Manhã">Manhã</option>
-              <option value="Noite">Noite</option>
+              <option value="Manhã">Diurno</option>
+              <option value="Noite">Noturno</option>
             </select>
           </div>
           <textarea name="alimentacao" placeholder="Alimentação" value={novoRelatorio.alimentacao} onChange={handleInputChange}></textarea>
@@ -103,7 +66,6 @@ function AddReportModal({ closeModal, onReportAdded }) {
           </div>
           <textarea name="observacoes" placeholder="Observações gerais..." value={novoRelatorio.observacoes} onChange={handleInputChange} required></textarea>
           <input type="text" name="responsavel" placeholder="Responsável (ex: Enf. Ana)" value={novoRelatorio.responsavel} onChange={handleInputChange} />
-
           <div className="modal-actions">
             <button type="button" onClick={closeModal}>Cancelar</button>
             <button type="submit" className="save-btn">Salvar Relatório</button>
@@ -114,4 +76,4 @@ function AddReportModal({ closeModal, onReportAdded }) {
   );
 }
 
-export default AddReportModal;
+export default AddDailyReportModal;

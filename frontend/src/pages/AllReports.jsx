@@ -1,5 +1,3 @@
-// frontend/src/pages/AllReports.jsx
-
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
@@ -7,23 +5,24 @@ import { toast } from 'react-toastify';
 import '../App.css';
 
 function AllReports() {
-  const [relatorios, setRelatorios] = useState([]);
+  const [feedItems, setFeedItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [todosPacientes, setTodosPacientes] = useState([]);
+  const [todosResidentes, setTodosResidentes] = useState([]);
   const [filtros, setFiltros] = useState({
     pacienteId: '',
-    data: ''
+    data: '',
+    tipo: ''
   });
 
-  const fetchRelatorios = (filtrosAtuais) => {
+  const fetchFeed = (filtrosAtuais) => {
     setLoading(true);
     axios.get('http://localhost:3001/api/relatorios', { params: filtrosAtuais })
       .then(response => {
-        setRelatorios(response.data);
+        setFeedItems(response.data);
       })
       .catch(error => {
-        console.error("Erro ao buscar relatórios:", error);
-        toast.error("Não foi possível carregar os relatórios.");
+        console.error("Erro ao buscar o feed de atividades:", error);
+        toast.error("Não foi possível carregar o feed de atividades.");
       })
       .finally(() => {
         setLoading(false);
@@ -31,106 +30,98 @@ function AllReports() {
   };
 
   useEffect(() => {
-    setLoading(true);
-    const requestRelatoriosIniciais = axios.get('http://localhost:3001/api/relatorios');
-    const requestPacientes = axios.get('http://localhost:3001/api/pacientes');
-
-    Promise.all([requestRelatoriosIniciais, requestPacientes])
-      .then(responses => {
-        setRelatorios(responses[0].data);
-        setTodosPacientes(responses[1].data);
-      })
-      .catch(error => {
-        console.error("Erro ao buscar dados iniciais:", error);
-        toast.error("Falha ao carregar dados da página.");
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    fetchFeed({}); 
+    axios.get('http://localhost:3001/api/pacientes').then(response => {
+      setTodosResidentes(response.data);
+    });
   }, []);
 
   const handleFiltroChange = (event) => {
     const { name, value } = event.target;
-    setFiltros(filtrosAnteriores => ({
-      ...filtrosAnteriores,
-      [name]: value
-    }));
+    setFiltros(prev => ({ ...prev, [name]: value }));
   };
 
   const handleAplicarFiltros = (event) => {
     event.preventDefault();
-    fetchRelatorios(filtros);
+    fetchFeed(filtros);
   };
 
   const handleLimparFiltros = () => {
-    const filtrosVazios = { pacienteId: '', data: '' };
+    const filtrosVazios = { pacienteId: '', data: '', tipo: '' };
     setFiltros(filtrosVazios);
-    fetchRelatorios(filtrosVazios);
+    fetchFeed(filtrosVazios);
   };
 
   if (loading) {
-    return (
-      <div className="loading-spinner-container">
-        <div className="loading-spinner"></div>
-      </div>
-    );
+    return <div className="loading-spinner-container"><div className="loading-spinner"></div></div>;
   }
 
   return (
     <div>
-      <h2>Feed de Todos os Relatórios</h2>
-
+      <h2>Feed de Atividades Recentes</h2>
       <form onSubmit={handleAplicarFiltros} className="filter-form">
         <div className="form-group">
-          <label htmlFor="pacienteId">Filtrar por Paciente:</label>
-          <select 
-            name="pacienteId" 
-            id="pacienteId"
-            value={filtros.pacienteId} 
-            onChange={handleFiltroChange}
-          >
-            <option value="">Todos os Pacientes</option>
-            {todosPacientes.map(p => (
-              <option key={p.id} value={p.id}>{p.nome}</option>
+          <label htmlFor="pacienteId">Filtrar por Residente:</label>
+          <select name="pacienteId" id="pacienteId" value={filtros.pacienteId} onChange={handleFiltroChange}>
+            <option value="">Todos os Residentes</option>
+            {todosResidentes.map(r => (
+              <option key={r.id} value={r.id}>{r.nome}</option>
             ))}
           </select>
         </div>
-
         <div className="form-group">
           <label htmlFor="data">Filtrar por Data:</label>
-          <input 
-            type="date" 
-            name="data" 
-            id="data"
-            value={filtros.data}
-            onChange={handleFiltroChange}
-          />
+          <input type="date" name="data" id="data" value={filtros.data} onChange={handleFiltroChange} />
         </div>
-
-        {/* MUDANÇA AQUI NOS BOTÕES */}
+        <div className="form-group">
+          <label htmlFor="tipo">Filtrar por Tipo de Relatório:</label>
+          <select name="tipo" id="tipo" value={filtros.tipo} onChange={handleFiltroChange}>
+            <option value="">Todos os Tipos</option>
+            <option value="relatorio_diario">Relatório Diário</option>
+            <option value="evolucao_enfermagem">Evolução de Enfermagem</option>
+            <option value="higiene">Relatório de Higiene</option>
+          </select>
+        </div>
         <div className="filter-actions">
           <button type="submit" className="save-btn">Filtrar</button>
           <button type="button" onClick={handleLimparFiltros}>Limpar Filtros</button>
         </div>
       </form>
 
-      {relatorios.length > 0 ? (
+      {feedItems.length > 0 ? (
         <ul className="report-list">
-          {relatorios.map(relatorio => (
-            <li key={relatorio.id} className="report-item">
-              <h3>
-                {new Date(relatorio.data).toLocaleDateString('pt-BR', {timeZone: 'UTC'})} às {relatorio.hora} - {relatorio.periodo}
-              </h3>
-              <h4>
-                Paciente: <Link to={`/paciente/${relatorio.paciente_id}`}>{relatorio.paciente_nome}</Link>
-              </h4>
-              <p><strong>Observações:</strong> {relatorio.observacoes}</p>
-              <p><small>Responsável: {relatorio.responsavel}</small></p>
+          {feedItems.map(item => (
+            <li key={`${item.tipo}-${item.id}`} className="report-item">
+              
+              {item.tipo === 'relatorio_diario' && (
+                <>
+                  <h3 style={{color: '#198754'}}>Relatório Diário</h3>
+                  <p><strong>Data:</strong> {new Date(item.data_universal).toLocaleDateString('pt-BR', {timeZone: 'UTC'})} às {item.hora} - {item.periodo}</p>
+                </>
+              )}
+
+              {item.tipo === 'evolucao_enfermagem' && (
+                <>
+                  <h3 style={{color: '#0d6efd'}}>Evolução de Enfermagem</h3>
+                   <p><strong>Data:</strong> {new Date(item.data_universal).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</p>
+                </>
+              )}
+
+              {item.tipo === 'higiene' && (
+                <>
+                  <h3 style={{color: '#6c757d'}}>Relatório de Higiene</h3>
+                   <p><strong>Data:</strong> {new Date(item.data_universal).toLocaleDateString('pt-BR', {timeZone: 'UTC'})} às {item.hora}</p>
+                </>
+              )}
+
+              <p><strong>Residente:</strong> <Link to={`/paciente/${item.paciente_id}`}>{item.residente_nome}</Link></p>
+              <p><strong>Observações:</strong> {item.observacoes}</p>
+              <p><small>Responsável: {item.responsavel_nome}</small></p>
             </li>
           ))}
         </ul>
       ) : (
-        <p>Nenhum relatório encontrado para os filtros selecionados.</p>
+        <p>Nenhuma atividade encontrada para os filtros selecionados.</p>
       )}
     </div>
   );
