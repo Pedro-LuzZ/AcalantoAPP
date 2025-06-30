@@ -13,8 +13,11 @@ const PORT = process.env.PORT || 3001;
 // Configuração do Pool de Conexão com o host IPV4 fixo
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  host: '65.109.11.149', // Força a conexão a usar este IP (IPv4)
+  ssl: {
+    rejectUnauthorized: false, // necessário para Supabase
+  },
 });
+
 
 app.use(cors());
 app.use(express.json());
