@@ -6,56 +6,34 @@ import { useAuth } from '../context/AuthContext';
 import '../App.css';
 
 function ResidentList() {
-  const { usuario } = useAuth();
   const [residentes, setResidentes] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchResidentes = () => {
+  useEffect(() => {
     setLoading(true);
     axios.get('http://localhost:3001/api/pacientes')
       .then(response => {
         setResidentes(response.data);
       })
       .catch(error => {
-        console.error('Houve um erro ao buscar os residentes:', error);
         toast.error('Não foi possível carregar a lista de residentes.');
       })
       .finally(() => {
         setLoading(false);
       });
-  };
-
-  useEffect(() => {
-    fetchResidentes();
   }, []);
 
-  const handleDelete = (id) => {
-    if (window.confirm("Tem certeza que deseja deletar este residente? Esta ação não pode ser desfeita.")) {
-      axios.delete(`http://localhost:3001/api/pacientes/${id}`)
-        .then(() => {
-          setResidentes(residentes.filter(residente => residente.id !== id));
-          toast.success('Residente deletado com sucesso!');
-        })
-        .catch(error => {
-          console.error('Houve um erro ao deletar o residente:', error);
-          toast.error(error.response?.data?.error || 'Não foi possível deletar o residente.');
-        });
-    }
-  };
+  // A função handleDelete foi REMOVIDA daqui.
 
   if (loading) {
-    return (
-      <div className="loading-spinner-container">
-        <div className="loading-spinner"></div>
-      </div>
-    );
+    return <div className="loading-spinner-container"><div className="loading-spinner"></div></div>;
   }
 
   return (
     <div>
       <h2>Lista de Residentes</h2>
       {residentes.length === 0 ? (
-        <p>Nenhum residente cadastrado ainda.</p>
+        <p>Nenhum residente ativo cadastrado.</p>
       ) : (
         <ul className="patient-list">
           {residentes.map(residente => (
@@ -68,9 +46,7 @@ function ResidentList() {
               </div>
               <div className="patient-actions">
                 <Link to={`/paciente/${residente.id}`} className="edit-btn">Ver Detalhes</Link>
-                {usuario && usuario.role === 'admin' && (
-                  <button onClick={() => handleDelete(residente.id)} className="delete-btn">Deletar</button>
-                )}
+                {/* O botão de deletar foi REMOVIDO daqui */}
               </div>
             </li>
           ))}

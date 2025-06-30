@@ -394,3 +394,61 @@ hr {
   flex-wrap: wrap;
   gap: 15px; /* Espaçamento entre as opções */
 }
+
+/* Estilos para os botões de ação na página de detalhes */
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap; /* Permite que os botões quebrem a linha em telas menores */
+  gap: 10px;
+  margin-bottom: 1rem;
+}
+
+.detail-actions .action-btn {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 1em;
+  transition: opacity 0.2s;
+}
+
+.detail-actions .action-btn:hover {
+  opacity: 0.85;
+}
+
+/* Modificadores de Cor */
+.action-btn.btn-green { background-color: #198754; color: white; }
+.action-btn.btn-cyan  { background-color: #0dcaf0; color: #000; }
+.action-btn.btn-blue  { background-color: #0d6efd; color: white; }
+.action-btn.btn-orange{ background-color: #fd7e14; color: white; }
+
+
+.admin-actions {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+  background-color: #fff3cd;
+  border-radius: 8px;
+  padding: 1rem;
+}
+.admin-actions h3 {
+  margin-top: 0;
+  color: #664d03;
+}
+.admin-actions button {
+  margin: 0 5px;
+}
+.archive-btn {
+  padding: 8px 15px;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  background-color: #6c757d; /* Cinza */
+  color: white;
+}
+.archive-btn:hover {
+  background-color: #5a6268;
+}
