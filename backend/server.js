@@ -1,3 +1,7 @@
+// Adicionado para o bug de conexão no Mac/redes específicas
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -6,10 +10,6 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { google } = require('googleapis');
 const stream = require('stream');
-
-// Adicionado para o bug de conexão no Mac/redes específicas
-const dns = require('dns');
-dns.setDefaultResultOrder('ipv4first');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -20,11 +20,6 @@ const pool = new Pool({
 
 app.use(cors());
 app.use(express.json());
-
-// Rota de status para verificar se a API está online
-app.get('/', (req, res) => {
-  res.send('API Acalanto Residence está no ar e funcionando!');
-});
 
 // --- Middlewares de Autenticação ---
 const autenticarToken = (req, res, next) => {
@@ -162,39 +157,38 @@ app.delete('/api/pacientes/:id', isAdmin, async (req, res) => {
 });
 
 app.post('/api/pacientes/:id/arquivar', isAdmin, async (req, res) => {
-  const { id } = req.params;
-  const FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID;
-  if (!FOLDER_ID) return res.status(500).json({ error: 'ID da pasta do Google Drive não configurado no servidor.' });
-  try {
-    const auth = new google.auth.GoogleAuth({
-      keyFile: 'google-credentials.json',
-      scopes: ['https://www.googleapis.com/auth/drive'],
-    });
-    const driveService = google.drive({ version: 'v3', auth });
-    const residenteRes = await pool.query('SELECT * FROM pacientes WHERE id = $1', [id]);
-    if (residenteRes.rows.length === 0) return res.status(404).json({ error: 'Residente não encontrado.' });
-    const residente = residenteRes.rows[0];
+    const { id } = req.params;
+    const FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID;
+    if (!FOLDER_ID) return res.status(500).json({ error: 'ID da pasta do Google Drive não configurado no servidor.' });
+    try {
+        const auth = new google.auth.GoogleAuth({
+            keyFile: 'google-credentials.json',
+            scopes: ['https://www.googleapis.com/auth/drive'],
+        });
+        const driveService = google.drive({ version: 'v3', auth });
+        const residenteRes = await pool.query('SELECT * FROM pacientes WHERE id = $1', [id]);
+        if (residenteRes.rows.length === 0) return res.status(404).json({ error: 'Residente não encontrado.' });
+        const residente = residenteRes.rows[0];
 
-    // ... (lógica para buscar todos os outros relatórios)
-    
-    let fileContent = `HISTÓRICO COMPLETO - ACALANTO RESIDENCE\nNome: ${residente.nome}\n...`;
-    
-    const fileName = `ARQUIVO_Historico_${residente.nome.replace(/ /g, '_')}_ID_${residente.id}.txt`;
-    const fileMetadata = { name: fileName, parents: [FOLDER_ID] };
-    const bufferStream = new stream.PassThrough();
-    bufferStream.end(fileContent);
+        // Aqui você adicionaria a lógica para buscar todos os outros relatórios
+        let fileContent = `HISTÓRICO DO RESIDENTE: ${residente.nome}\n\n... (adicionar todos os dados aqui)`;
+        
+        const fileName = `ARQUIVO_Historico_${residente.nome.replace(/ /g, '_')}_ID_${residente.id}.txt`;
+        const fileMetadata = { name: fileName, parents: [FOLDER_ID] };
+        const bufferStream = new stream.PassThrough();
+        bufferStream.end(fileContent);
 
-    await driveService.files.create({
-      media: { mimeType: 'text/plain', body: bufferStream },
-      resource: fileMetadata,
-      fields: 'id',
-    });
-    await pool.query("UPDATE pacientes SET status = 'arquivado' WHERE id = $1", [id]);
-    res.status(200).json({ message: 'Residente arquivado com sucesso no Google Drive!' });
-  } catch (err) {
-    console.error("Erro ao arquivar residente:", err);
-    res.status(500).json({ error: 'Falha ao arquivar residente.' });
-  }
+        await driveService.files.create({
+            media: { mimeType: 'text/plain', body: bufferStream },
+            resource: fileMetadata,
+            fields: 'id',
+        });
+        await pool.query("UPDATE pacientes SET status = 'arquivado' WHERE id = $1", [id]);
+        res.status(200).json({ message: 'Residente arquivado com sucesso no Google Drive!' });
+    } catch (err) {
+        console.error("Erro ao arquivar residente:", err);
+        res.status(500).json({ error: 'Falha ao arquivar residente.' });
+    }
 });
 
 
@@ -242,7 +236,9 @@ app.post('/api/pacientes/:id/evolucoes-enfermagem', async (req, res) => {
   constipacao_dias = constipacao_dias === '' || constipacao_dias === null ? null : parseInt(constipacao_dias, 10);
   dor_grau = dor_grau === '' || dor_grau === null ? null : parseInt(dor_grau, 10);
   try {
-    const sql = `INSERT INTO evolucao_enfermagem (paciente_id, usuario_id, data_ocorrencia, grau_dependencia, mobilidade, nivel_consciencia, pele_e_mucosa, lesao_pressao_local, padrao_respiratorio, alteracoes_respiratorias, tosse, alimentacao_via, alimentacao_aceitacao, eliminacao_vesical, eliminacao_intestinal, constipacao_dias, sono_repouso, estado_geral, dor_status, dor_grau, dor_local, observacoes, responsavel_nome) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23) RETURNING *;`;
+    const sql = `
+      INSERT INTO evolucao_enfermagem (paciente_id, usuario_id, data_ocorrencia, grau_dependencia, mobilidade, nivel_consciencia, pele_e_mucosa, lesao_pressao_local, padrao_respiratorio, alteracoes_respiratorias, tosse, alimentacao_via, alimentacao_aceitacao, eliminacao_vesical, eliminacao_intestinal, constipacao_dias, sono_repouso, estado_geral, dor_status, dor_grau, dor_local, observacoes, responsavel_nome) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23) RETURNING *;`;
     const params = [ paciente_id, usuario_id, data_ocorrencia, grau_dependencia, mobilidade, nivel_consciencia, pele_e_mucosa, lesao_pressao_local, padrao_respiratorio, alteracoes_respiratorias, tosse, alimentacao_via, alimentacao_aceitacao, eliminacao_vesical, eliminacao_intestinal, constipacao_dias, sono_repouso, estado_geral, dor_status, dor_grau, dor_local, observacoes, responsavel_nome ];
     const result = await pool.query(sql, params);
     res.status(201).json(result.rows[0]);
@@ -278,29 +274,23 @@ app.post('/api/pacientes/:id/higiene', async (req, res) => {
 });
 
 app.get('/api/pacientes/:id/evolucao-tecnico', async (req, res) => {
-    try {
-      const { id } = req.params;
-      const sql = "SELECT * FROM evolucao_tecnico WHERE residente_id = $1 ORDER BY data_ocorrencia DESC, id DESC";
-      const result = await pool.query(sql, [id]);
-      res.json(result.rows);
-    } catch (err) {
-      res.status(500).json({ error: 'Erro ao buscar evoluções do técnico.' });
-    }
+  try {
+    const { id } = req.params;
+    const sql = "SELECT * FROM evolucao_tecnico WHERE residente_id = $1 ORDER BY data_ocorrencia DESC, id DESC";
+    const result = await pool.query(sql, [id]);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar evoluções do técnico.' });
+  }
 });
-  
+
 app.post('/api/pacientes/:id/evolucao-tecnico', async (req, res) => {
     const { id: residente_id } = req.params;
     const { data_ocorrencia, turno, nivel_consciencia, pele_mucosa, lpp_local, padrao_respiratorio, fr, em_uso_o2, tosse, alimentacao_via, alimentacao_aceitacao, sono_repouso, cuidado_banho, cuidado_deambulacao, cuidado_curativo, curativo_local, cuidados_outros, observacoes } = req.body;
     const responsavel_nome = req.usuario.nome;
     const usuario_id = req.usuario.id;
     try {
-      const sql = `
-        INSERT INTO evolucao_tecnico (
-          residente_id, usuario_id, data_ocorrencia, turno, nivel_consciencia, pele_mucosa, lpp_local,
-          padrao_respiratorio, fr, em_uso_o2, tosse, alimentacao_via, alimentacao_aceitacao,
-          sono_repouso, cuidado_banho, cuidado_deambulacao, cuidado_curativo, curativo_local,
-          cuidados_outros, observacoes, responsavel_nome
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING *;`;
+      const sql = `INSERT INTO evolucao_tecnico (residente_id, usuario_id, data_ocorrencia, turno, nivel_consciencia, pele_mucosa, lpp_local, padrao_respiratorio, fr, em_uso_o2, tosse, alimentacao_via, alimentacao_aceitacao, sono_repouso, cuidado_banho, cuidado_deambulacao, cuidado_curativo, curativo_local, cuidados_outros, observacoes, responsavel_nome) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING *;`;
       const params = [ residente_id, usuario_id, data_ocorrencia, turno, nivel_consciencia, pele_mucosa, lpp_local, padrao_respiratorio, fr, em_uso_o2, tosse, alimentacao_via, alimentacao_aceitacao, sono_repouso, cuidado_banho, cuidado_deambulacao, cuidado_curativo, curativo_local, cuidados_outros, observacoes, responsavel_nome ];
       const result = await pool.query(sql, params);
       res.status(201).json(result.rows[0]);
