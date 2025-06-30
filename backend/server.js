@@ -21,6 +21,11 @@ const pool = new Pool({
 app.use(cors());
 app.use(express.json());
 
+// Rota de status para verificar se a API está online
+app.get('/', (req, res) => {
+  res.send('API Acalanto Residence está no ar e funcionando!');
+});
+
 // --- Middlewares de Autenticação ---
 const autenticarToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
