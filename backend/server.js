@@ -1,3 +1,7 @@
+// Adicionado para o bug de conexão no Mac/redes específicas
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -10,14 +14,9 @@ const stream = require('stream');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Configuração do Pool de Conexão com o host IPV4 fixo
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false, // necessário para Supabase
-  },
 });
-
 
 app.use(cors());
 app.use(express.json());
@@ -92,8 +91,63 @@ app.get('/api/pacientes', async (req, res) => {
     const result = await pool.query("SELECT * FROM pacientes WHERE status = 'ativo' ORDER BY nome");
     res.json(result.rows);
   } catch (err) {
-    console.error("Erro em GET /api/pacientes:", err);
     res.status(500).json({ error: 'Erro ao buscar residentes.' });
+  }
+});
+
+app.get('/api/pacientes/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('SELECT * FROM pacientes WHERE id = $1', [id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Residente não encontrado.' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar residente.' });
+  }
+});
+
+app.post('/api/pacientes', async (req, res) => {
+  try {
+    const { nome, idade, quarto, diagnostico, medicamentos, contato_emergencia, data_internacao, responsavel_familiar_nome, responsavel_familiar_contato, link_medicamentos } = req.body;
+    if (!nome) return res.status(400).json({ error: 'O campo "nome" é obrigatório.' });
+    const sql = `
+      INSERT INTO pacientes (nome, idade, quarto, diagnostico, medicamentos, contato_emergencia, data_internacao, responsavel_familiar_nome, responsavel_familiar_contato, link_medicamentos) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+      RETURNING *`;
+    const params = [nome, idade, quarto, diagnostico, medicamentos, contato_emergencia, data_internacao, responsavel_familiar_nome, responsavel_familiar_contato, link_medicamentos];
+    const result = await pool.query(sql, params);
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao cadastrar residente.' });
+  }
+});
+
+app.put('/api/pacientes/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nome, idade, quarto, diagnostico, medicamentos, contato_emergencia, data_internacao, responsavel_familiar_nome, responsavel_familiar_contato, link_medicamentos } = req.body;
+    if (!nome) return res.status(400).json({ error: 'O campo "nome" é obrigatório.' });
+    const sql = `
+      UPDATE pacientes 
+      SET nome = $1, idade = $2, quarto = $3, diagnostico = $4, medicamentos = $5, contato_emergencia = $6, data_internacao = $7, responsavel_familiar_nome = $8, responsavel_familiar_contato = $9, link_medicamentos = $10 
+      WHERE id = $11 RETURNING *`;
+    const params = [nome, idade, quarto, diagnostico, medicamentos, contato_emergencia, data_internacao, responsavel_familiar_nome, responsavel_familiar_contato, link_medicamentos, id];
+    const result = await pool.query(sql, params);
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Residente não encontrado para atualização.' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao atualizar residente.' });
+  }
+});
+
+app.delete('/api/pacientes/:id', isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM pacientes WHERE id = $1', [id]);
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Residente não encontrado para deleção.' });
+    res.status(200).json({ message: `Residente com ID ${id} deletado com sucesso!` });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao deletar residente.' });
   }
 });
 
@@ -178,8 +232,16 @@ app.post('/api/pacientes/:id/evolucoes-enfermagem', async (req, res) => {
   dor_grau = dor_grau === '' || dor_grau === null ? null : parseInt(dor_grau, 10);
   try {
     const sql = `
-      INSERT INTO evolucao_enfermagem (paciente_id, usuario_id, data_ocorrencia, grau_dependencia, mobilidade, nivel_consciencia, pele_e_mucosa, lesao_pressao_local, padrao_respiratorio, alteracoes_respiratorias, tosse, alimentacao_via, alimentacao_aceitacao, eliminacao_vesical, eliminacao_intestinal, constipacao_dias, sono_repouso, estado_geral, dor_status, dor_grau, dor_local, observacoes, responsavel_nome) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23) RETURNING *;`;
+      INSERT INTO evolucao_enfermagem (
+        paciente_id, usuario_id, data_ocorrencia, grau_dependencia, mobilidade, nivel_consciencia,
+        pele_e_mucosa, lesao_pressao_local, padrao_respiratorio, alteracoes_respiratorias, tosse,
+        alimentacao_via, alimentacao_aceitacao, eliminacao_vesical, eliminacao_intestinal,
+        constipacao_dias, sono_repouso, estado_geral, dor_status, dor_grau, dor_local,
+        observacoes, responsavel_nome
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23
+      ) RETURNING *;
+    `;
     const params = [ paciente_id, usuario_id, data_ocorrencia, grau_dependencia, mobilidade, nivel_consciencia, pele_e_mucosa, lesao_pressao_local, padrao_respiratorio, alteracoes_respiratorias, tosse, alimentacao_via, alimentacao_aceitacao, eliminacao_vesical, eliminacao_intestinal, constipacao_dias, sono_repouso, estado_geral, dor_status, dor_grau, dor_local, observacoes, responsavel_nome ];
     const result = await pool.query(sql, params);
     res.status(201).json(result.rows[0]);
@@ -205,7 +267,9 @@ app.post('/api/pacientes/:id/higiene', async (req, res) => {
   const responsavel_nome = req.usuario.nome;
   const usuario_id = req.usuario.id;
   try {
-    const sql = `INSERT INTO higiene_relatorios (residente_id, usuario_id, data_ocorrencia, hora_ocorrencia, banho_corporal, banho_parcial, higiene_intima, observacoes, responsavel_nome) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;`;
+    const sql = `
+      INSERT INTO higiene_relatorios (residente_id, usuario_id, data_ocorrencia, hora_ocorrencia, banho_corporal, banho_parcial, higiene_intima, observacoes, responsavel_nome) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;`;
     const params = [ residente_id, usuario_id, data_ocorrencia, hora_ocorrencia, banho_corporal, banho_parcial, higiene_intima, observacoes, responsavel_nome ];
     const result = await pool.query(sql, params);
     res.status(201).json(result.rows[0]);
@@ -227,17 +291,46 @@ app.get('/api/pacientes/:id/evolucao-tecnico', async (req, res) => {
 
 app.post('/api/pacientes/:id/evolucao-tecnico', async (req, res) => {
     const { id: residente_id } = req.params;
-    const { data_ocorrencia, turno, nivel_consciencia, pele_mucosa, lpp_local, padrao_respiratorio, fr, em_uso_o2, tosse, alimentacao_via, alimentacao_aceitacao, sono_repouso, cuidado_banho, cuidado_deambulacao, cuidado_curativo, curativo_local, cuidados_outros, observacoes } = req.body;
+    const {
+      data_ocorrencia, turno, nivel_consciencia, pele_mucosa, lpp_local,
+      padrao_respiratorio, fr, em_uso_o2, tosse, alimentacao_via,
+      alimentacao_aceitacao, sono_repouso, cuidado_banho, cuidado_deambulacao,
+      cuidado_curativo, curativo_local, cuidados_outros, observacoes
+    } = req.body;
+  
     const responsavel_nome = req.usuario.nome;
     const usuario_id = req.usuario.id;
+  
     try {
-      const sql = `INSERT INTO evolucao_tecnico (residente_id, usuario_id, data_ocorrencia, turno, nivel_consciencia, pele_mucosa, lpp_local, padrao_respiratorio, fr, em_uso_o2, tosse, alimentacao_via, alimentacao_aceitacao, sono_repouso, cuidado_banho, cuidado_deambulacao, cuidado_curativo, curativo_local, cuidados_outros, observacoes, responsavel_nome) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING *;`;
-      const params = [ residente_id, usuario_id, data_ocorrencia, turno, nivel_consciencia, pele_mucosa, lpp_local, padrao_respiratorio, fr, em_uso_o2, tosse, alimentacao_via, alimentacao_aceitacao, sono_repouso, cuidado_banho, cuidado_deambulacao, cuidado_curativo, curativo_local, cuidados_outros, observacoes, responsavel_nome ];
+      const sql = `
+        INSERT INTO evolucao_tecnico (
+          residente_id, usuario_id, data_ocorrencia, turno, nivel_consciencia, pele_mucosa, lpp_local,
+          padrao_respiratorio, fr, em_uso_o2, tosse, alimentacao_via, alimentacao_aceitacao,
+          sono_repouso, cuidado_banho, cuidado_deambulacao, cuidado_curativo, curativo_local,
+          cuidados_outros, observacoes, responsavel_nome
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21
+        ) RETURNING *;
+      `;
+      const params = [
+        residente_id, usuario_id, data_ocorrencia, turno, nivel_consciencia, pele_mucosa, lpp_local,
+        padrao_respiratorio, fr, em_uso_o2, tosse, alimentacao_via, alimentacao_aceitacao,
+        sono_repouso, cuidado_banho, cuidado_deambulacao, cuidado_curativo, curativo_local,
+        cuidados_outros, observacoes, responsavel_nome
+      ];
+  
       const result = await pool.query(sql, params);
       res.status(201).json(result.rows[0]);
     } catch (err) {
+      console.error("Erro ao salvar evolução do técnico:", err);
       res.status(500).json({ error: 'Erro interno ao salvar evolução do técnico.' });
     }
+});
+
+
+// --- ROTA GERAL DE FEED (UNIFICADA) ---
+app.get('/api/relatorios', async (req, res) => {
+  // A ser implementada
 });
 
 
