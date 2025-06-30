@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import axios from 'axios';
 import { toast } from 'react-toastify';
+import api from '../api'; // MUDANÇA AQUI
 import { useAuth } from '../context/AuthContext';
 import '../App.css';
 
@@ -9,7 +9,7 @@ function EvolucaoTecnicoModal({ residente, closeModal, onSave }) {
 
   const getInitialState = () => ({
     data_ocorrencia: new Date().toISOString().split('T')[0],
-    diurno: true,
+    turno: 'Diurno',
     nivel_consciencia: [],
     pele_mucosa: [],
     lpp_local: '',
@@ -33,28 +33,22 @@ function EvolucaoTecnicoModal({ residente, closeModal, onSave }) {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
+    let finalValue = value;
+
     if (type === 'checkbox') {
-        // Para checkboxes que guardam um array de strings
-        if (Array.isArray(formData[name])) {
-            const currentValues = formData[name];
-            const newValues = checked
-                ? [...currentValues, value]
-                : currentValues.filter(item => item !== value);
-            setFormData(prevState => ({ ...prevState, [name]: newValues }));
-        } else {
-            // Para checkboxes que guardam um booleano (true/false)
-            setFormData(prevState => ({ ...prevState, [name]: checked }));
-        }
-    } else {
-        // Para todos os outros inputs (text, radio, etc)
-        setFormData(prevState => ({ ...prevState, [name]: value }));
+      if (typeof formData[name] === 'boolean') {
+        finalValue = checked;
+      } else {
+        const currentValues = formData[name] || [];
+        finalValue = checked ? [...currentValues, value] : currentValues.filter(item => item !== value);
+      }
     }
+    setFormData(prevState => ({ ...prevState, [name]: finalValue }));
   };
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    axios.post(`http://localhost:3001/api/pacientes/${residente.id}/evolucao-tecnico`, formData)
+    api.post(`/pacientes/${residente.id}/evolucao-tecnico`, formData) // MUDANÇA AQUI
       .then(() => {
         toast.success("Evolução do técnico salva com sucesso!");
         if (onSave) onSave();
@@ -73,14 +67,17 @@ function EvolucaoTecnicoModal({ residente, closeModal, onSave }) {
         <form onSubmit={handleSubmit} className="report-form evolution-form">
             <div className="form-row">
               <div className="form-group">
-                <label>Data</label>
-                <input type="date" name="data_ocorrencia" value={formData.data_ocorrencia} onChange={handleChange} required/>
+                <label htmlFor="data_ocorrencia_tec">Data</label>
+                <input id="data_ocorrencia_tec" type="date" name="data_ocorrencia" value={formData.data_ocorrencia} onChange={handleChange} required/>
               </div>
-              <div className="input-group">
-                  <input type="checkbox" id="diurno_tec" name="diurno" checked={formData.diurno} onChange={handleChange} /><label htmlFor="diurno_tec">Diurno</label>
-              </div>
+              <fieldset style={{border: 'none', padding: 0}}>
+                  <legend>Turno</legend>
+                  <div className="input-group-row">
+                      <div className="input-group"><input type="radio" id="turno_d_tec" name="turno" value="Diurno" checked={formData.turno === 'Diurno'} onChange={handleChange} /><label htmlFor="turno_d_tec">Diurno</label></div>
+                      <div className="input-group"><input type="radio" id="turno_n_tec" name="turno" value="Noturno" checked={formData.turno === 'Noturno'} onChange={handleChange} /><label htmlFor="turno_n_tec">Noturno</label></div>
+                  </div>
+              </fieldset>
             </div>
-
             <fieldset>
                 <legend>Nível de Consciência</legend>
                 <div className="form-grid">
@@ -92,7 +89,6 @@ function EvolucaoTecnicoModal({ residente, closeModal, onSave }) {
                     <div className="input-group"><input type="checkbox" name="nivel_consciencia" value="Não Contactuante" onChange={handleChange} /><label>Não Contactuante</label></div>
                 </div>
             </fieldset>
-            
             <fieldset>
                 <legend>Pele e Mucosa</legend>
                 <div className="form-grid">
@@ -104,7 +100,6 @@ function EvolucaoTecnicoModal({ residente, closeModal, onSave }) {
                 </div>
                 <input type="text" name="lpp_local" placeholder="LPP Local:" value={formData.lpp_local} onChange={handleChange} style={{marginTop: '10px'}}/>
             </fieldset>
-
             <fieldset>
                 <legend>Padrão Respiratório</legend>
                 <div className="form-grid">
@@ -118,39 +113,36 @@ function EvolucaoTecnicoModal({ residente, closeModal, onSave }) {
                 </div>
                 <div className="input-group-row" style={{marginTop: '10px'}}>
                     <label style={{fontWeight: 'bold'}}>Tosse:</label>
-                    <div className="input-group"><input type="radio" id="tosse_p_tec" name="tosse" value="Produtiva" onChange={handleChange}/><label htmlFor="tosse_p_tec">Produtiva</label></div>
-                    <div className="input-group"><input type="radio" id="tosse_s_tec" name="tosse" value="Seca" onChange={handleChange}/><label htmlFor="tosse_s_tec">Seca</label></div>
+                    <div className="input-group"><input type="radio" id="tosse_p_tec" name="tosse" value="Produtiva" checked={formData.tosse === 'Produtiva'} onChange={handleChange}/><label htmlFor="tosse_p_tec">Produtiva</label></div>
+                    <div className="input-group"><input type="radio" id="tosse_s_tec" name="tosse" value="Seca" checked={formData.tosse === 'Seca'} onChange={handleChange}/><label htmlFor="tosse_s_tec">Seca</label></div>
                 </div>
             </fieldset>
-
             <fieldset>
                 <legend>Alimentação</legend>
                 <div className="form-group">
                     <label>Via:</label>
                     <div className="input-group-row">
-                        <div className="input-group"><input type="radio" name="alimentacao_via" value="Via oral" onChange={handleChange} /><label>Via oral</label></div>
-                        <div className="input-group"><input type="radio" name="alimentacao_via" value="SNG" onChange={handleChange} /><label>SNG</label></div>
-                        <div className="input-group"><input type="radio" name="alimentacao_via" value="Gastrostomia" onChange={handleChange} /><label>Gastrostomia</label></div>
+                        <div className="input-group"><input type="radio" name="alimentacao_via" value="Via oral" checked={formData.alimentacao_via === 'Via oral'} onChange={handleChange} /><label>Via oral</label></div>
+                        <div className="input-group"><input type="radio" name="alimentacao_via" value="SNG" checked={formData.alimentacao_via === 'SNG'} onChange={handleChange} /><label>SNG</label></div>
+                        <div className="input-group"><input type="radio" name="alimentacao_via" value="Gastrostomia" checked={formData.alimentacao_via === 'Gastrostomia'} onChange={handleChange} /><label>Gastrostomia</label></div>
                     </div>
                 </div>
                 <div className="form-group">
                     <label>Aceitação:</label>
                     <div className="input-group-row">
-                        <div className="input-group"><input type="radio" name="alimentacao_aceitacao" value="Boa aceitação" onChange={handleChange} /><label>Boa aceitação</label></div>
-                        <div className="input-group"><input type="radio" name="alimentacao_aceitacao" value="Aceita parcialmente" onChange={handleChange} /><label>Aceita parcialmente</label></div>
-                        <div className="input-group"><input type="radio" name="alimentacao_aceitacao" value="Não aceitou" onChange={handleChange} /><label>Não aceitou</label></div>
+                        <div className="input-group"><input type="radio" name="alimentacao_aceitacao" value="Boa aceitação" checked={formData.alimentacao_aceitacao === 'Boa aceitação'} onChange={handleChange} /><label>Boa aceitação</label></div>
+                        <div className="input-group"><input type="radio" name="alimentacao_aceitacao" value="Aceita parcialmente" checked={formData.alimentacao_aceitacao === 'Aceita parcialmente'} onChange={handleChange} /><label>Aceita parcialmente</label></div>
+                        <div className="input-group"><input type="radio" name="alimentacao_aceitacao" value="Não aceitou" checked={formData.alimentacao_aceitacao === 'Não aceitou'} onChange={handleChange} /><label>Não aceitou</label></div>
                     </div>
                 </div>
             </fieldset>
-
             <fieldset>
                 <legend>Sono e Repouso</legend>
                 <div className="input-group-row">
-                    <div className="input-group"><input type="radio" name="sono_repouso" value="Satisfatório" onChange={handleChange}/><label>Satisfatório</label></div>
-                    <div className="input-group"><input type="radio" name="sono_repouso" value="Insatisfatório" onChange={handleChange}/><label>Insatisfatório</label></div>
+                    <div className="input-group"><input type="radio" name="sono_repouso" value="Satisfatório" checked={formData.sono_repouso === 'Satisfatório'} onChange={handleChange}/><label>Satisfatório</label></div>
+                    <div className="input-group"><input type="radio" name="sono_repouso" value="Insatisfatório" checked={formData.sono_repouso === 'Insatisfatório'} onChange={handleChange}/><label>Insatisfatório</label></div>
                 </div>
             </fieldset>
-
             <fieldset>
                 <legend>Cuidados Diversos</legend>
                 <div className="form-group">
@@ -181,12 +173,10 @@ function EvolucaoTecnicoModal({ residente, closeModal, onSave }) {
                     </div>
                 </div>
             </fieldset>
-            
             <fieldset>
                 <legend>Observações</legend>
                 <textarea name="observacoes" placeholder="Observações gerais..." value={formData.observacoes} onChange={handleChange} style={{minHeight: '100px'}} />
             </fieldset>
-
             <div className="form-group">
                 <label>Plantonista Responsável</label>
                 <input type="text" name="responsavel_nome" value={formData.responsavel_nome} readOnly disabled style={{backgroundColor: '#e9ecef'}}/>

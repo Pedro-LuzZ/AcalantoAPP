@@ -1,21 +1,12 @@
-// frontend/src/components/AddDailyReportModal.jsx
-
 import { useState } from 'react';
-import axios from 'axios';
 import { toast } from 'react-toastify';
+import api from '../api'; // MUDANÇA AQUI
 import '../App.css';
 
-// Funções para data e hora
-const getTodayDateString = () => new Date().toISOString().split('T')[0];
-const getCurrentTimeString = () => {
-  const now = new Date();
-  const hours = String(now.getHours()).padStart(2, '0');
-  const minutes = String(now.getMinutes()).padStart(2, '0');
-  return `${hours}:${minutes}`;
-};
-
-// O componente agora recebe o residente, uma função para fechar e uma para salvar
 function AddDailyReportModal({ residente, closeModal, onSave }) {
+  const getTodayDateString = () => new Date().toISOString().split('T')[0];
+  const getCurrentTimeString = () => new Date().toTimeString().substring(0, 5);
+
   const [novoRelatorio, setNovoRelatorio] = useState({
     data: getTodayDateString(),
     hora: getCurrentTimeString(),
@@ -34,11 +25,11 @@ function AddDailyReportModal({ residente, closeModal, onSave }) {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    axios.post(`http://localhost:3001/api/pacientes/${residente.id}/relatorios`, novoRelatorio)
+    api.post(`/pacientes/${residente.id}/relatorios`, novoRelatorio) // MUDANÇA AQUI
       .then(() => {
         toast.success('Relatório salvo com sucesso!');
-        if (onSave) onSave(); // Avisa o componente pai para atualizar os dados
-        closeModal(); // Fecha o modal
+        if (onSave) onSave();
+        closeModal();
       })
       .catch(err => {
         console.error('Erro ao cadastrar relatório:', err);
@@ -55,8 +46,8 @@ function AddDailyReportModal({ residente, closeModal, onSave }) {
             <input type="date" name="data" value={novoRelatorio.data} onChange={handleInputChange} />
             <input type="time" name="hora" value={novoRelatorio.hora} onChange={handleInputChange} />
             <select name="periodo" value={novoRelatorio.periodo} onChange={handleInputChange}>
-              <option value="Manhã">Diurno</option>
-              <option value="Noite">Noturno</option>
+              <option value="Manhã">Manhã</option>
+              <option value="Noite">Noite</option>
             </select>
           </div>
           <textarea name="alimentacao" placeholder="Alimentação" value={novoRelatorio.alimentacao} onChange={handleInputChange}></textarea>

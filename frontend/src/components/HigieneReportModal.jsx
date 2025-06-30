@@ -1,20 +1,15 @@
 import { useState } from 'react';
-import axios from 'axios';
 import { toast } from 'react-toastify';
+import api from '../api'; // MUDANÇA AQUI
 import { useAuth } from '../context/AuthContext';
 import '../App.css';
 
 function HigieneReportModal({ residente, closeModal, onSave }) {
   const { usuario } = useAuth();
 
-  // Funções para obter data e hora atuais
-  const getTodayDateString = () => new Date().toISOString().split('T')[0];
-  const getCurrentTimeString = () => new Date().toTimeString().substring(0, 5);
-
-  // Estado inicial do formulário
-  const [formData, setFormData] = useState({
-    data_ocorrencia: getTodayDateString(),
-    hora_ocorrencia: getCurrentTimeString(),
+  const getInitialState = () => ({
+    data_ocorrencia: new Date().toISOString().split('T')[0],
+    hora_ocorrencia: new Date().toTimeString().substring(0, 5),
     banho_corporal: false,
     banho_parcial: false,
     higiene_intima: false,
@@ -22,7 +17,8 @@ function HigieneReportModal({ residente, closeModal, onSave }) {
     responsavel_nome: usuario?.nome || ''
   });
 
-  // Lida com mudanças nos inputs
+  const [formData, setFormData] = useState(getInitialState());
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prevState => ({
@@ -31,14 +27,13 @@ function HigieneReportModal({ residente, closeModal, onSave }) {
     }));
   };
 
-  // Lida com o envio do formulário
   const handleSubmit = (event) => {
     event.preventDefault();
-    axios.post(`http://localhost:3001/api/pacientes/${residente.id}/higiene`, formData)
+    api.post(`/pacientes/${residente.id}/higiene`, formData) // MUDANÇA AQUI
       .then(() => {
         toast.success("Relatório de higiene salvo com sucesso!");
-        if (onSave) onSave(); // Avisa a página pai para recarregar os dados
-        closeModal(); // Fecha o modal
+        if (onSave) onSave();
+        closeModal();
       })
       .catch(err => {
         console.error("Erro ao salvar relatório de higiene:", err);

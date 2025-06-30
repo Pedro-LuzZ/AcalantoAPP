@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import '../App.css';
@@ -33,13 +33,14 @@ function ResidentDetail() {
   const [isHigieneModalOpen, setIsHigieneModalOpen] = useState(false);
   const [isTecnicoModalOpen, setIsTecnicoModalOpen] = useState(false);
 
+  // Função principal para buscar todos os dados da página
   const fetchData = () => {
     setLoading(true);
-    const requestResidentDetail = axios.get(`http://localhost:3001/api/pacientes/${id}`);
-    const requestDailyReports = axios.get(`http://localhost:3001/api/pacientes/${id}/relatorios`);
-    const requestEvolucoesEnf = axios.get(`http://localhost:3001/api/pacientes/${id}/evolucoes-enfermagem`);
-    const requestHigiene = axios.get(`http://localhost:3001/api/pacientes/${id}/higiene`);
-    const requestEvolucoesTec = axios.get(`http://localhost:3001/api/pacientes/${id}/evolucao-tecnico`);
+    const requestResidentDetail = api.get(`/pacientes/${id}`);
+    const requestDailyReports = api.get(`/pacientes/${id}/relatorios`);
+    const requestEvolucoesEnf = api.get(`/pacientes/${id}/evolucoes-enfermagem`);
+    const requestHigiene = api.get(`/pacientes/${id}/higiene`);
+    const requestEvolucoesTec = api.get(`/pacientes/${id}/evolucao-tecnico`);
 
     Promise.all([requestResidentDetail, requestDailyReports, requestEvolucoesEnf, requestHigiene, requestEvolucoesTec])
       .then(([resResidente, resRelatorios, resEvolucoesEnf, resHigiene, resEvolucoesTec]) => {
@@ -69,7 +70,7 @@ function ResidentDetail() {
   const handleEditFormChange = (event) => { const { name, value } = event.target; setEditFormData({ ...editFormData, [name]: value }); };
   const handleUpdateResidentSubmit = (event) => {
     event.preventDefault();
-    axios.put(`http://localhost:3001/api/pacientes/${id}`, editFormData)
+    api.put(`/pacientes/${id}`, editFormData)
       .then(() => {
         toast.success('Dados do residente atualizados com sucesso!');
         fetchData();
@@ -80,7 +81,7 @@ function ResidentDetail() {
   // Funções de Ações de Administrador
   const handleDelete = () => {
     if (window.confirm("DELETAR: Tem certeza? Esta ação apagará permanentemente o residente do banco de dados.")) {
-      axios.delete(`http://localhost:3001/api/pacientes/${id}`)
+      api.delete(`/pacientes/${id}`)
         .then(() => {
           toast.success('Residente deletado com sucesso!');
           navigate('/pacientes');
@@ -92,15 +93,14 @@ function ResidentDetail() {
   };
 
   const handleArchive = () => {
-    if (window.confirm("ARQUIVAR: Tem certeza? Um backup completo será salvo no Google Drive e o residente será removido da lista de ativos.")) {
+    if (window.confirm("ARQUIVAR: Tem certeza? Um backup será salvo no Google Drive e o residente será removido da lista de ativos.")) {
       toast.info("Arquivando residente... Este processo pode levar um momento.");
-      axios.post(`http://localhost:3001/api/pacientes/${id}/arquivar`)
+      api.post(`/pacientes/${id}/arquivar`)
         .then(response => {
           toast.success(response.data.message);
           navigate('/pacientes');
         })
         .catch(error => {
-          console.error('Houve um erro ao arquivar o residente:', error);
           toast.error(error.response?.data?.error || 'Falha ao arquivar o residente.');
         });
     }
@@ -145,8 +145,8 @@ function ResidentDetail() {
         <h1>{residente.nome}</h1>
         <div className="detail-actions">
           <button onClick={handleEditResidentClick} className="edit-btn">Editar Dados</button>
-          <button onClick={() => setIsDailyReportModalOpen(true)} className="action-btn" style={{backgroundColor: '#198754'}}>Relatório Diário</button>
-          <button onClick={() => setIsHigieneModalOpen(true)} className="action-btn" style={{backgroundColor: '#0dcaf0', color: '#000'}}>Rel. de Higiene</button>
+          <button onClick={() => setIsDailyReportModalOpen(true)} className="action-btn btn-green">Relatório Diário</button>
+          <button onClick={() => setIsHigieneModalOpen(true)} className="action-btn btn-cyan">Rel. de Higiene</button>
           <button onClick={() => setIsEvolucaoEnfModalOpen(true)} className="action-btn btn-blue">Evol. de Enfermagem</button>
           <button onClick={() => setIsTecnicoModalOpen(true)} className="action-btn btn-orange">Evol. do Técnico</button>
         </div>
@@ -169,7 +169,6 @@ function ResidentDetail() {
         </ul>
         <Link to="/pacientes" className="back-link">Voltar para a Lista de Residentes</Link>
         
-        {/* SEÇÃO DE AÇÕES DE ADMIN */}
         {usuario && usuario.role === 'admin' && (
             <div className="admin-actions">
                 <h3>Ações de Administrador</h3>
@@ -178,6 +177,7 @@ function ResidentDetail() {
             </div>
         )}
       </div>
+      
       <hr/>
 
       {/* ===== SEÇÃO DE HISTÓRICOS ===== */}
@@ -188,6 +188,7 @@ function ResidentDetail() {
               {evolucoesTecnico.map(evo => (
                 <li key={`tec-${evo.id}`} className="report-item">
                     <p><strong>Data:</strong> {new Date(evo.data_ocorrencia).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</p>
+                    <p><strong>Turno:</strong> {evo.turno}</p>
                     <p><strong>Observações:</strong> {evo.observacoes}</p>
                     <p><small>Responsável: {evo.responsavel_nome}</small></p>
                 </li>
@@ -195,6 +196,7 @@ function ResidentDetail() {
           </ul>
         ) : <p>Nenhuma evolução de técnico encontrada.</p>}
       </div>
+      
       <div className="reports-section">
         <h3>Histórico de Evoluções de Enfermagem</h3>
         {evolucoesEnfermagem.length > 0 ? (
@@ -209,6 +211,7 @@ function ResidentDetail() {
           </ul>
         ) : <p>Nenhuma evolução de enfermagem cadastrada.</p>}
       </div>
+      
       <div className="reports-section">
         <h3>Histórico de Higiene</h3>
         {higieneReports.length > 0 ? (
@@ -227,6 +230,7 @@ function ResidentDetail() {
           </ul>
         ) : <p>Nenhum relatório de higiene encontrado.</p>}
       </div>
+      
       <ReportList relatorios={relatorios} />
     </div>
   );

@@ -1,37 +1,44 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import { toast } from 'react-toastify';
-import { useAuth } from '../context/AuthContext';
 import '../App.css';
 
 function ResidentList() {
   const [residentes, setResidentes] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchResidentes = () => {
     setLoading(true);
-    axios.get('http://localhost:3001/api/pacientes')
+    // Busca apenas os residentes com status 'ativo'
+    api.get('/pacientes')
       .then(response => {
         setResidentes(response.data);
       })
       .catch(error => {
+        console.error('Houve um erro ao buscar os residentes:', error);
         toast.error('Não foi possível carregar a lista de residentes.');
       })
       .finally(() => {
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchResidentes();
   }, []);
 
-  // A função handleDelete foi REMOVIDA daqui.
-
   if (loading) {
-    return <div className="loading-spinner-container"><div className="loading-spinner"></div></div>;
+    return (
+      <div className="loading-spinner-container">
+        <div className="loading-spinner"></div>
+      </div>
+    );
   }
 
   return (
     <div>
-      <h2>Lista de Residentes</h2>
+      <h2>Lista de Residentes Ativos</h2>
       {residentes.length === 0 ? (
         <p>Nenhum residente ativo cadastrado.</p>
       ) : (
@@ -46,7 +53,6 @@ function ResidentList() {
               </div>
               <div className="patient-actions">
                 <Link to={`/paciente/${residente.id}`} className="edit-btn">Ver Detalhes</Link>
-                {/* O botão de deletar foi REMOVIDO daqui */}
               </div>
             </li>
           ))}
