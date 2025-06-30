@@ -1,7 +1,3 @@
-// Adicionado para o bug de conexão no Mac/redes específicas
-const dns = require('dns');
-dns.setDefaultResultOrder('ipv4first');
-
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -14,8 +10,10 @@ const stream = require('stream');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Configuração do Pool de Conexão com o host IPV4 fixo
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  host: '65.109.11.149', // Força a conexão a usar este IP (IPv4)
 });
 
 app.use(cors());
@@ -93,66 +91,6 @@ app.get('/api/pacientes', async (req, res) => {
   } catch (err) {
     console.error("Erro em GET /api/pacientes:", err);
     res.status(500).json({ error: 'Erro ao buscar residentes.' });
-  }
-});
-
-app.get('/api/pacientes/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await pool.query('SELECT * FROM pacientes WHERE id = $1', [id]);
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Residente não encontrado.' });
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error("Erro em GET /api/pacientes/:id:", err);
-    res.status(500).json({ error: 'Erro ao buscar residente.' });
-  }
-});
-
-app.post('/api/pacientes', async (req, res) => {
-  try {
-    const { nome, idade, quarto, diagnostico, medicamentos, contato_emergencia, data_internacao, responsavel_familiar_nome, responsavel_familiar_contato, link_medicamentos } = req.body;
-    if (!nome) return res.status(400).json({ error: 'O campo "nome" é obrigatório.' });
-    const sql = `
-      INSERT INTO pacientes (nome, idade, quarto, diagnostico, medicamentos, contato_emergencia, data_internacao, responsavel_familiar_nome, responsavel_familiar_contato, link_medicamentos) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
-      RETURNING *`;
-    const params = [nome, idade, quarto, diagnostico, medicamentos, contato_emergencia, data_internacao, responsavel_familiar_nome, responsavel_familiar_contato, link_medicamentos];
-    const result = await pool.query(sql, params);
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    console.error("Erro em POST /api/pacientes:", err);
-    res.status(500).json({ error: 'Erro ao cadastrar residente.' });
-  }
-});
-
-app.put('/api/pacientes/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { nome, idade, quarto, diagnostico, medicamentos, contato_emergencia, data_internacao, responsavel_familiar_nome, responsavel_familiar_contato, link_medicamentos } = req.body;
-    if (!nome) return res.status(400).json({ error: 'O campo "nome" é obrigatório.' });
-    const sql = `
-      UPDATE pacientes 
-      SET nome = $1, idade = $2, quarto = $3, diagnostico = $4, medicamentos = $5, contato_emergencia = $6, data_internacao = $7, responsavel_familiar_nome = $8, responsavel_familiar_contato = $9, link_medicamentos = $10 
-      WHERE id = $11 RETURNING *`;
-    const params = [nome, idade, quarto, diagnostico, medicamentos, contato_emergencia, data_internacao, responsavel_familiar_nome, responsavel_familiar_contato, link_medicamentos, id];
-    const result = await pool.query(sql, params);
-    if (result.rowCount === 0) return res.status(404).json({ error: 'Residente não encontrado para atualização.' });
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error("Erro em PUT /api/pacientes/:id:", err);
-    res.status(500).json({ error: 'Erro ao atualizar residente.' });
-  }
-});
-
-app.delete('/api/pacientes/:id', isAdmin, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await pool.query('DELETE FROM pacientes WHERE id = $1', [id]);
-    if (result.rowCount === 0) return res.status(404).json({ error: 'Residente não encontrado para deleção.' });
-    res.status(200).json({ message: `Residente com ID ${id} deletado com sucesso!` });
-  } catch (err) {
-    console.error("Erro em DELETE /api/pacientes/:id:", err);
-    res.status(500).json({ error: 'Erro ao deletar residente.' });
   }
 });
 
