@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 import { toast } from 'react-toastify';
 import '../App.css';
 
@@ -33,7 +33,7 @@ function AddReportModal({ closeModal, onReportAdded }) {
   });
 
   useEffect(() => {
-    axios.get('http://localhost:3001/api/pacientes')
+    api.get('/pacientes')
       .then(response => {
         setResidentes(response.data);
       })
@@ -55,7 +55,7 @@ function AddReportModal({ closeModal, onReportAdded }) {
       return;
     }
 
-    axios.post(`http://localhost:3001/api/pacientes/${selectedResidentId}/relatorios`, novoRelatorio)
+    api.post(`/relatorios`, novoRelatorio)
       .then(() => {
         toast.success('Relatório salvo com sucesso!');
         if (onReportAdded) onReportAdded();
