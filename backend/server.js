@@ -95,6 +95,109 @@ app.get('/api/pacientes', async (req, res) => {
   }
 });
 
+app.get('/api/relatorios', async (req, res) => {
+  try {
+    const { pacienteId, data, tipo } = req.query;
+
+    // Query SQL com UNION para juntar todas as tabelas
+    const query = `
+      SELECT
+        id,
+        paciente_id,
+        usuario_id,
+        data_ocorrencia AS data_universal,
+        hora_ocorrencia AS hora,
+        NULL AS periodo,
+        NULL AS alimentacao,
+        NULL AS temperatura,
+        NULL AS pressao,
+        observacoes,
+        responsavel_nome AS responsavel,
+        'evolucao_enfermagem' AS tipo
+      FROM evolucao_enfermagem
+      WHERE 
+        ($1::text IS NULL OR $1 = '' OR paciente_id = $1)
+        AND ($2::text IS NULL OR $2 = '' OR data_ocorrencia = $2)
+      
+      UNION ALL
+
+      SELECT
+        id,
+        paciente_id,
+        usuario_id,
+        data_ocorrencia AS data_universal,
+        NULL AS hora,
+        NULL AS periodo,
+        NULL AS alimentacao,
+        NULL AS temperatura,
+        NULL AS pressao,
+        observacoes,
+        responsavel_nome AS responsavel,
+        'evolucao_tecnico' AS tipo
+      FROM evolucao_tecnico
+      WHERE 
+        ($1::text IS NULL OR $1 = '' OR paciente_id = $1)
+        AND ($2::text IS NULL OR $2 = '' OR data_ocorrencia = $2)
+
+      UNION ALL
+
+      SELECT
+        id,
+        paciente_id,
+        usuario_id,
+        data_ocorrencia AS data_universal,
+        hora_ocorrencia AS hora,
+        NULL AS periodo,
+        NULL AS alimentacao,
+        NULL AS temperatura,
+        NULL AS pressao,
+        observacoes,
+        responsavel_nome AS responsavel,
+        'higiene' AS tipo
+      FROM higiene_relatorios
+      WHERE 
+        ($1::text IS NULL OR $1 = '' OR paciente_id = $1)
+        AND ($2::text IS NULL OR $2 = '' OR data_ocorrencia = $2)
+
+      UNION ALL
+
+      SELECT
+        id,
+        paciente_id,
+        usuario_id,
+        data AS data_universal,
+        hora AS hora,
+        periodo,
+        alimentacao,
+        temperatura,
+        pressao,
+        observacoes,
+        responsavel,
+        'relatorio_diario' AS tipo
+      FROM relatorios_diarios
+      WHERE 
+        ($1::text IS NULL OR $1 = '' OR paciente_id = $1)
+        AND ($2::text IS NULL OR $2 = '' OR data = $2)
+
+      ORDER BY data_universal DESC NULLS LAST, hora DESC NULLS LAST
+    `;
+
+    const values = [pacienteId || '', data || ''];
+    const { rows } = await pool.query(query, values);
+
+    // Se quiser filtrar tipo no backend, faz isso aqui:
+    const tipoFiltro = tipo && tipo.trim() !== '' ? tipo.trim() : null;
+    const resultadoFiltrado = tipoFiltro
+      ? rows.filter(row => row.tipo === tipoFiltro)
+      : rows;
+
+    res.json(resultadoFiltrado);
+  } catch (error) {
+    console.error('Erro ao buscar relatórios:', error);
+    res.status(500).json({ error: 'Erro ao buscar relatórios.' });
+  }
+});
+
 app.get('/api/pacientes/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -352,3 +455,21 @@ app.listen(PORT, () => {
   console.log(`Servidor rodando com sucesso na porta http://localhost:${PORT}`);
 });
 setInterval(() => {}, 300000);
+
+
+
+
+
+
+
+//evolucao_enfermagem
+// id	paciente_id	usuario_id	data_ocorrencia	grau_dependencia	mobilidade	nivel_consciencia	pele_e_mucosa	lesao_pressao_local	padrao_respiratorio	alteracoes_respiratorias	tosse	alimentacao_via	alimentacao_aceitacao	eliminacao_vesical	eliminacao_intestinal	constipacao_dias	sono_repouso	estado_geral	dor_status	dor_grau	dor_local	observacoes	responsavel_nome	data_criacao
+
+//evolucao_tecnico
+//id	paciente_id	usuario_id	data_ocorrencia	turno	nivel_consciencia	pele_mucosa	lpp_local	padrao_respiratorio	fr	em_uso_o2	tosse	alimentacao_via	alimentacao_aceitacao	sono_repouso	cuidado_banho	cuidado_deambulacao	cuidado_curativo	curativo_local	cuidados_outros	observacoes	responsavel_nome	data_criacao
+
+//higiene_relatorios
+//id	paciente_id	usuario_id	data_ocorrencia	hora_ocorrencia	banho_corporal	banho_parcial	higiene_intima	observacoes	responsavel_nome	data_criacao
+
+//relatorios_diarios
+//id	paciente_id	usuario_id	data	hora	periodo	alimentacao	temperatura	pressao	observacoes	responsavel
