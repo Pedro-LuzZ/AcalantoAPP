@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api'; // substitui axios
 import { toast } from 'react-toastify';
 import '../App.css';
 
@@ -16,7 +16,7 @@ function AllReports() {
 
   const fetchFeed = (filtrosAtuais) => {
     setLoading(true);
-    axios.get('http://localhost:3001/api/relatorios', { params: filtrosAtuais })
+        api.get('/relatorios', { params: filtrosAtuais })
       .then(response => {
         setFeedItems(response.data);
       })
@@ -31,7 +31,7 @@ function AllReports() {
 
   useEffect(() => {
     fetchFeed({}); 
-    axios.get('http://localhost:3001/api/pacientes').then(response => {
+      api.get('/pacientes').then(response => {
       setTodosResidentes(response.data);
     });
   }, []);
