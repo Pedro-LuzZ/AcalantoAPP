@@ -327,13 +327,6 @@ app.post('/api/pacientes/:id/evolucao-tecnico', async (req, res) => {
     }
 });
 
-
-// --- ROTA GERAL DE FEED (UNIFICADA) ---
-app.get('/api/relatorios', async (req, res) => {
-  // ...
-});
-
-
 // --- APLICAÇÃO INICIA AQUI ---
 app.listen(PORT, () => {
   console.log(`Servidor rodando com sucesso na porta http://localhost:${PORT}`);
