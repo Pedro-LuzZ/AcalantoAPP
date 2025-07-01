@@ -191,36 +191,25 @@ app.post('/api/pacientes/:id/arquivar', isAdmin, async (req, res) => {
 app.get('/api/pacientes/:id/relatorios', async (req, res) => {
   try {
     const { id } = req.params;
-    // Aqui vamos pegar query params opcionais
-    const { data, tipo } = req.query;
-
-    // Montar a query SQL com filtros dinâmicos
+    const { data } = req.query; // recebe data mas ignora tipo
     let query = `SELECT * FROM relatorios_diarios WHERE paciente_id = $1`;
     let params = [id];
-    let paramIndex = 2;
 
     if (data) {
-      query += ` AND data = $${paramIndex}`;
+      query += ` AND data = $2`;
       params.push(data);
-      paramIndex++;
-    }
-
-    if (tipo) {
-      query += ` AND tipo = $${paramIndex}`;
-      params.push(tipo);
-      paramIndex++;
     }
 
     query += ' ORDER BY data DESC, hora DESC';
 
     const result = await pool.query(query, params);
     res.json(result.rows);
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erro ao buscar relatórios.' });
   }
 });
+
 
 app.post('/api/pacientes/:id/relatorios', async (req, res) => {
   try {
