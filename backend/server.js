@@ -14,7 +14,8 @@ const PORT = process.env.PORT || 3001;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-
+  // A linha abaixo força a conexão via IPv4 e resolve o problema
+  host: '20.25.33.242', 
 });
 
 app.use(cors());
