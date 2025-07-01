@@ -1,5 +1,9 @@
 console.log("--- EXECUTANDO VERSÃO FINAL DO SERVIDOR v2 (com fix de IP) ---");
 
+// Força o Node a usar IPv4 como prioridade em resoluções DNS
+require('dns').setDefaultResultOrder('ipv4first');
+
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
