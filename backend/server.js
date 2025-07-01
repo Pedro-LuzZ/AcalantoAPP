@@ -253,7 +253,7 @@ app.post('/api/pacientes/:id/evolucoes-enfermagem', async (req, res) => {
 app.get('/api/pacientes/:id/higiene', async (req, res) => {
   try {
     const { id } = req.params;
-    const sql = "SELECT * FROM higiene_relatorios WHERE residente_id = $1 ORDER BY data_ocorrencia DESC, hora_ocorrencia DESC";
+    const sql = "SELECT * FROM higiene_relatorios WHERE paciente_id = $1 ORDER BY data_ocorrencia DESC, hora_ocorrencia DESC";
     const result = await pool.query(sql, [id]);
     res.json(result.rows);
   } catch (err) {
@@ -281,7 +281,7 @@ app.post('/api/pacientes/:id/higiene', async (req, res) => {
 app.get('/api/pacientes/:id/evolucao-tecnico', async (req, res) => {
     try {
       const { id } = req.params;
-      const sql = "SELECT * FROM evolucao_tecnico WHERE residente_id = $1 ORDER BY data_ocorrencia DESC, id DESC";
+      const sql = "SELECT * FROM evolucao_tecnico WHERE paciente_id = $1 ORDER BY data_ocorrencia DESC, id DESC";
       const result = await pool.query(sql, [id]);
       res.json(result.rows);
     } catch (err) {
