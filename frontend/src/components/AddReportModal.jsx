@@ -48,24 +48,24 @@ function AddReportModal({ closeModal, onReportAdded }) {
     setNovoRelatorio({ ...novoRelatorio, [name]: value });
   };
 
-  const handleSubmit = (event) => {
+      const handleSubmit = (event) => {
     event.preventDefault();
     if (!selectedResidentId) {
       toast.warn('Por favor, selecione um residente.');
       return;
     }
 
-    api.post(`/relatorios`, novoRelatorio)
-      .then(() => {
-        toast.success('Relatório salvo com sucesso!');
-        if (onReportAdded) onReportAdded();
-        closeModal();
-      })
-      .catch(err => {
-        console.error('Erro ao cadastrar relatório:', err);
-        toast.error('Falha ao cadastrar relatório.');
-      });
-  };
+    api.post(`/pacientes/${selectedResidentId}/relatorios`, novoRelatorio)
+    .then(() => {
+      toast.success('Relatório salvo com sucesso!');
+      if (onReportAdded) onReportAdded();
+      closeModal();
+    })
+    .catch(err => {
+      console.error('Erro ao cadastrar relatório:', err);
+      toast.error('Falha ao cadastrar relatório.');
+    });
+};
 
   return (
     <div className="modal-backdrop">
