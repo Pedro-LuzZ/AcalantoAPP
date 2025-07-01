@@ -1,4 +1,6 @@
-console.log("--- EXECUTANDO VERSÃO FINAL DO SERVIDOR v2 (com fix de IP) ---");
+// Adicionado para o bug de conexão no Mac/redes específicas
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
 
 require('dotenv').config();
 const express = require('express');
@@ -14,8 +16,6 @@ const PORT = process.env.PORT || 3001;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // A linha abaixo força a conexão via IPv4 e resolve o problema
-  host: '20.25.33.242', 
 });
 
 app.use(cors());
@@ -279,16 +279,16 @@ app.post('/api/pacientes/:id/higiene', async (req, res) => {
 });
 
 app.get('/api/pacientes/:id/evolucao-tecnico', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const sql = "SELECT * FROM evolucao_tecnico WHERE residente_id = $1 ORDER BY data_ocorrencia DESC, id DESC";
-    const result = await pool.query(sql, [id]);
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: 'Erro ao buscar evoluções do técnico.' });
-  }
+    try {
+      const { id } = req.params;
+      const sql = "SELECT * FROM evolucao_tecnico WHERE residente_id = $1 ORDER BY data_ocorrencia DESC, id DESC";
+      const result = await pool.query(sql, [id]);
+      res.json(result.rows);
+    } catch (err) {
+      res.status(500).json({ error: 'Erro ao buscar evoluções do técnico.' });
+    }
 });
-
+  
 app.post('/api/pacientes/:id/evolucao-tecnico', async (req, res) => {
     const { id: residente_id } = req.params;
     const {
@@ -330,7 +330,7 @@ app.post('/api/pacientes/:id/evolucao-tecnico', async (req, res) => {
 
 // --- ROTA GERAL DE FEED (UNIFICADA) ---
 app.get('/api/relatorios', async (req, res) => {
-  // A ser implementada
+  // ...
 });
 
 

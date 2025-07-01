@@ -63,79 +63,30 @@ function ResidentDetail() {
   const handleEditResidentClick = () => { setEditFormData(residente); setIsEditing(true); };
   const handleCancelEdit = () => setIsEditing(false);
   const handleEditFormChange = (event) => { const { name, value } = event.target; setEditFormData({ ...editFormData, [name]: value }); };
-  const handleUpdateResidentSubmit = (event) => {
-    event.preventDefault();
-    api.put(`/pacientes/${id}`, editFormData)
-      .then(() => {
-        toast.success('Dados do residente atualizados com sucesso!');
-        fetchData();
-        setIsEditing(false);
-      }).catch(() => toast.error('Falha ao atualizar residente.'));
-  };
-
-  const handleDelete = () => {
-    if (window.confirm("DELETAR: Tem certeza? Esta ação apagará permanentemente o residente do banco de dados.")) {
-      api.delete(`/pacientes/${id}`)
-        .then(() => {
-          toast.success('Residente deletado com sucesso!');
-          navigate('/pacientes');
-        })
-        .catch(error => {
-          toast.error(error.response?.data?.error || 'Não foi possível deletar o residente.');
-        });
-    }
-  };
-
-  const handleArchive = () => {
-    if (window.confirm("ARQUIVAR: Tem certeza? Um backup será salvo no Google Drive e o residente será removido da lista de ativos.")) {
-      toast.info("Arquivando residente... Este processo pode levar um momento.");
-      api.post(`/pacientes/${id}/arquivar`)
-        .then(response => {
-          toast.success(response.data.message);
-          navigate('/pacientes');
-        })
-        .catch(error => {
-          toast.error(error.response?.data?.error || 'Falha ao arquivar o residente.');
-        });
-    }
-  };
+  const handleUpdateResidentSubmit = (event) => { /* ... */ };
+  const handleDelete = () => { /* ... */ };
+  const handleArchive = () => { /* ... */ };
 
   if (loading) return <div className="loading-spinner-container"><div className="loading-spinner"></div></div>;
   if (!residente) return <div className="error-message">Residente não encontrado. <Link to="/pacientes">Voltar para a lista.</Link></div>;
 
   return (
     <div>
-      {isEditing && ( <div className="modal-backdrop">...</div> )}
+      {/* SEÇÃO DE MODAIS */}
+      {isEditing && ( <div className="modal-backdrop"> ... </div> )}
       {isDailyReportModalOpen && <AddDailyReportModal residente={residente} closeModal={() => setIsDailyReportModalOpen(false)} onSave={fetchData} />}
       {isEvolucaoEnfModalOpen && <EvolucaoEnfermagemModal residente={residente} closeModal={() => setIsEvolucaoEnfModalOpen(false)} onSave={fetchData} />}
       {isHigieneModalOpen && <HigieneReportModal residente={residente} closeModal={() => setIsHigieneModalOpen(false)} onSave={fetchData} />}
       {isTecnicoModalOpen && <EvolucaoTecnicoModal residente={residente} closeModal={() => setIsTecnicoModalOpen(false)} onSave={fetchData} />}
 
+      {/* CARD DE DETALHES DO RESIDENTE */}
       <div className="patient-detail-card">
-        <h1>{residente.nome}</h1>
-        <div className="detail-actions">
-          <button onClick={handleEditResidentClick} className="edit-btn">Editar Dados</button>
-          <button onClick={() => setIsDailyReportModalOpen(true)} className="action-btn btn-green">Relatório Diário</button>
-          <button onClick={() => setIsHigieneModalOpen(true)} className="action-btn btn-cyan">Rel. de Higiene</button>
-          <button onClick={() => setIsEvolucaoEnfModalOpen(true)} className="action-btn btn-blue">Evol. de Enfermagem</button>
-          <button onClick={() => setIsTecnicoModalOpen(true)} className="action-btn btn-orange">Evol. do Técnico</button>
-        </div>
-        <ul>
-          {/* Detalhes do residente */}
-        </ul>
-        <Link to="/pacientes" className="back-link">Voltar para a Lista</Link>
-        
-        {usuario && usuario.role === 'admin' && (
-            <div className="admin-actions">
-                <h3>Ações de Administrador</h3>
-                <button onClick={handleDelete} className="delete-btn">Deletar Residente</button>
-                <button onClick={handleArchive} className="archive-btn">Arquivar Residente</button>
-            </div>
-        )}
+        {/* ... */}
       </div>
       
       <hr/>
 
+      {/* SEÇÃO DE HISTÓRICOS */}
       <div className="reports-section">
         <h3>Histórico de Evoluções do Técnico</h3>
         {/* ... */}
