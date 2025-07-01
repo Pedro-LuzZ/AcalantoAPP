@@ -1,6 +1,4 @@
-// Adicionado para o bug de conexão no Mac/redes específicas
-const dns = require('dns');
-dns.setDefaultResultOrder('ipv4first');
+console.log("--- EXECUTANDO VERSÃO FINAL DO SERVIDOR v2 (com fix de IP) ---");
 
 require('dotenv').config();
 const express = require('express');
