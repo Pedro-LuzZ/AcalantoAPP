@@ -15,18 +15,34 @@ function AllReports() {
   });
 
   const fetchFeed = (filtrosAtuais) => {
-    setLoading(true);
-        api.get('/relatorios', { params: filtrosAtuais })
-      .then(response => {
-        setFeedItems(response.data);
-      })
-      .catch(error => {
-        console.error("Erro ao buscar o feed de atividades:", error);
-        toast.error("Não foi possível carregar o feed de atividades.");
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+  setLoading(true);
+
+  const { pacienteId, data, tipo } = filtrosAtuais;
+
+  if (!pacienteId) {
+    // Se quiser buscar todos os relatórios sem filtro, crie rota no backend para isso,
+    // ou simplesmente limpar a lista e não fazer requisição
+    setFeedItems([]);
+    setLoading(false);
+    return;
+  }
+
+  // Montar query string para data e tipo
+  const queryParams = new URLSearchParams();
+  if (data) queryParams.append('data', data);
+  if (tipo) queryParams.append('tipo', tipo);
+
+  api.get(`/pacientes/${pacienteId}/relatorios?${queryParams.toString()}`)
+    .then(response => {
+      setFeedItems(response.data);
+    })
+    .catch(error => {
+      console.error("Erro ao buscar o feed de atividades:", error);
+      toast.error("Não foi possível carregar o feed de atividades.");
+    })
+    .finally(() => {
+      setLoading(false);
+    });
   };
 
   useEffect(() => {
