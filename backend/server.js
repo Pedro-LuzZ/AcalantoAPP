@@ -262,15 +262,22 @@ app.get('/api/pacientes/:id/higiene', async (req, res) => {
 });
 
 app.post('/api/pacientes/:id/higiene', async (req, res) => {
-  const { id: residente_id } = req.params;
+  const { id: paciente_id } = req.params;
   const { data_ocorrencia, hora_ocorrencia, banho_corporal, banho_parcial, higiene_intima, observacoes } = req.body;
   const responsavel_nome = req.usuario.nome;
   const usuario_id = req.usuario.id;
   try {
     const sql = `
-      INSERT INTO higiene_relatorios (residente_id, usuario_id, data_ocorrencia, hora_ocorrencia, banho_corporal, banho_parcial, higiene_intima, observacoes, responsavel_nome) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;`;
-    const params = [ residente_id, usuario_id, data_ocorrencia, hora_ocorrencia, banho_corporal, banho_parcial, higiene_intima, observacoes, responsavel_nome ];
+      INSERT INTO higiene_relatorios (
+      paciente_id, usuario_id, data_ocorrencia, hora_ocorrencia,
+      banho_corporal, banho_parcial, higiene_intima,
+      observacoes, responsavel_nome
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9
+      ) RETURNING *;
+    `;
+
+    const params = [ paciente_id, usuario_id, data_ocorrencia, hora_ocorrencia, banho_corporal, banho_parcial, higiene_intima, observacoes, responsavel_nome ];
     const result = await pool.query(sql, params);
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -290,7 +297,7 @@ app.get('/api/pacientes/:id/evolucao-tecnico', async (req, res) => {
 });
   
 app.post('/api/pacientes/:id/evolucao-tecnico', async (req, res) => {
-    const { id: residente_id } = req.params;
+    const { id: paciente_id } = req.params;
     const {
       data_ocorrencia, turno, nivel_consciencia, pele_mucosa, lpp_local,
       padrao_respiratorio, fr, em_uso_o2, tosse, alimentacao_via,
@@ -304,7 +311,7 @@ app.post('/api/pacientes/:id/evolucao-tecnico', async (req, res) => {
     try {
       const sql = `
         INSERT INTO evolucao_tecnico (
-          residente_id, usuario_id, data_ocorrencia, turno, nivel_consciencia, pele_mucosa, lpp_local,
+          paciente_id, usuario_id, data_ocorrencia, turno, nivel_consciencia, pele_mucosa, lpp_local,
           padrao_respiratorio, fr, em_uso_o2, tosse, alimentacao_via, alimentacao_aceitacao,
           sono_repouso, cuidado_banho, cuidado_deambulacao, cuidado_curativo, curativo_local,
           cuidados_outros, observacoes, responsavel_nome
@@ -313,7 +320,7 @@ app.post('/api/pacientes/:id/evolucao-tecnico', async (req, res) => {
         ) RETURNING *;
       `;
       const params = [
-        residente_id, usuario_id, data_ocorrencia, turno, nivel_consciencia, pele_mucosa, lpp_local,
+        paciente_id, usuario_id, data_ocorrencia, turno, nivel_consciencia, pele_mucosa, lpp_local,
         padrao_respiratorio, fr, em_uso_o2, tosse, alimentacao_via, alimentacao_aceitacao,
         sono_repouso, cuidado_banho, cuidado_deambulacao, cuidado_curativo, curativo_local,
         cuidados_outros, observacoes, responsavel_nome
