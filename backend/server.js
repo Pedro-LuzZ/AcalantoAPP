@@ -284,8 +284,8 @@ app.post('/api/pacientes/:id/arquivar', isAdmin, async (req, res) => {
         await pool.query("UPDATE pacientes SET status = 'arquivado' WHERE id = $1", [id]);
         res.status(200).json({ message: 'Residente arquivado com sucesso no Google Drive!' });
     } catch (err) {
-        console.error("Erro ao arquivar residente:", err);
-        res.status(500).json({ error: 'Falha ao arquivar residente.' });
+      console.error("Erro ao arquivar residente:", err.message, err.stack);
+      res.status(500).json({ error: 'Falha ao arquivar residente.' });
     }
 });
 
