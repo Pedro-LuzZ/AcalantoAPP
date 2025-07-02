@@ -260,9 +260,9 @@ app.post('/api/pacientes/:id/arquivar', isAdmin, async (req, res) => {
     if (!FOLDER_ID) return res.status(500).json({ error: 'ID da pasta do Google Drive não configurado no servidor.' });
     try {
         const auth = new google.auth.GoogleAuth({
-            keyFile: 'google-credentials.json',
+          credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON),
             scopes: ['https://www.googleapis.com/auth/drive'],
-        });
+            });
         const driveService = google.drive({ version: 'v3', auth });
         const residenteRes = await pool.query('SELECT * FROM pacientes WHERE id = $1', [id]);
         if (residenteRes.rows.length === 0) return res.status(404).json({ error: 'Residente não encontrado.' });
