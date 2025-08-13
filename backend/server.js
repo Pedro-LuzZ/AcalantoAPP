@@ -95,102 +95,102 @@ app.get('/api/pacientes', async (req, res) => {
   }
 });
 
+// Helper: SELECT de UNION com tipos explícitos
+const UNIFIED_SELECT = (extraWhere) => `
+  -- ENFERMAGEM
+  SELECT
+    e.id::bigint                           AS id,
+    e.paciente_id::bigint                  AS paciente_id,
+    p.nome::text                           AS residente,
+    e.usuario_id::bigint                   AS usuario_id,
+    e.data_ocorrencia::date                AS data_universal,
+    NULL::text                             AS hora,
+    NULL::text                             AS periodo,
+    NULL::text                             AS alimentacao,
+    NULL::text                             AS temperatura,
+    NULL::text                             AS pressao,
+    e.observacoes::text                    AS observacoes,
+    e.responsavel_nome::text               AS responsavel,
+    'evolucao_enfermagem'::text            AS tipo
+  FROM evolucao_enfermagem e
+  LEFT JOIN pacientes p ON e.paciente_id = p.id
+  ${extraWhere('e')}
+
+  UNION ALL
+
+  -- TÉCNICO
+  SELECT
+    t.id::bigint                           AS id,
+    t.paciente_id::bigint                  AS paciente_id,
+    p.nome::text                           AS residente,
+    t.usuario_id::bigint                   AS usuario_id,
+    t.data_ocorrencia::date                AS data_universal,
+    NULL::text                             AS hora,
+    NULL::text                             AS periodo,
+    NULL::text                             AS alimentacao,
+    NULL::text                             AS temperatura,
+    NULL::text                             AS pressao,
+    t.observacoes::text                    AS observacoes,
+    t.responsavel_nome::text               AS responsavel,
+    'evolucao_tecnico'::text               AS tipo
+  FROM evolucao_tecnico t
+  LEFT JOIN pacientes p ON t.paciente_id = p.id
+  ${extraWhere('t')}
+
+  UNION ALL
+
+  -- HIGIENE
+  SELECT
+    h.id::bigint                           AS id,
+    h.paciente_id::bigint                  AS paciente_id,
+    p.nome::text                           AS residente,
+    h.usuario_id::bigint                   AS usuario_id,
+    h.data_ocorrencia::date                AS data_universal,
+    h.hora_ocorrencia::text                AS hora,
+    NULL::text                             AS periodo,
+    NULL::text                             AS alimentacao,
+    NULL::text                             AS temperatura,
+    NULL::text                             AS pressao,
+    h.observacoes::text                    AS observacoes,
+    h.responsavel_nome::text               AS responsavel,
+    'higiene'::text                        AS tipo
+  FROM higiene_relatorios h
+  LEFT JOIN pacientes p ON h.paciente_id = p.id
+  ${extraWhere('h')}
+
+  UNION ALL
+
+  -- DIÁRIO
+  SELECT
+    r.id::bigint                           AS id,
+    r.paciente_id::bigint                  AS paciente_id,
+    p.nome::text                           AS residente,
+    r.usuario_id::bigint                   AS usuario_id,
+    r.data::date                           AS data_universal,
+    r.hora::text                           AS hora,
+    r.periodo::text                        AS periodo,
+    r.alimentacao::text                    AS alimentacao,
+    r.temperatura::text                    AS temperatura,
+    r.pressao::text                        AS pressao,
+    r.observacoes::text                    AS observacoes,
+    r.responsavel::text                    AS responsavel,
+    'relatorio_diario'::text               AS tipo
+  FROM relatorios_diarios r
+  LEFT JOIN pacientes p ON r.paciente_id = p.id
+  ${extraWhere('r')}
+`;
+
 // --- FEED UNIFICADO ---
 app.get('/api/relatorios', async (req, res) => {
   try {
     const { pacienteId, data, tipo } = req.query;
 
     const query = `
-      -- ENFERMAGEM (sem hora)
-      SELECT
-        e.id,
-        e.paciente_id,
-        p.nome AS residente,
-        e.usuario_id,
-        e.data_ocorrencia AS data_universal,
-        NULL::text AS hora,
-        NULL AS periodo,
-        NULL AS alimentacao,
-        NULL AS temperatura,
-        NULL AS pressao,
-        e.observacoes,
-        e.responsavel_nome AS responsavel,
-        'evolucao_enfermagem' AS tipo
-      FROM evolucao_enfermagem e
-      LEFT JOIN pacientes p ON e.paciente_id = p.id
-      WHERE
-        (CAST(NULLIF($1,'') AS INT) IS NULL OR e.paciente_id = CAST(NULLIF($1,'') AS INT))
-        AND (NULLIF($2,'')::date IS NULL OR e.data_ocorrencia = NULLIF($2,'')::date)
-
-      UNION ALL
-
-      -- TÉCNICO (sem hora)
-      SELECT
-        t.id,
-        t.paciente_id,
-        p.nome AS residente,
-        t.usuario_id,
-        t.data_ocorrencia AS data_universal,
-        NULL::text AS hora,
-        NULL AS periodo,
-        NULL AS alimentacao,
-        NULL AS temperatura,
-        NULL AS pressao,
-        t.observacoes,
-        t.responsavel_nome AS responsavel,
-        'evolucao_tecnico' AS tipo
-      FROM evolucao_tecnico t
-      LEFT JOIN pacientes p ON t.paciente_id = p.id
-      WHERE
-        (CAST(NULLIF($1,'') AS INT) IS NULL OR t.paciente_id = CAST(NULLIF($1,'') AS INT))
-        AND (NULLIF($2,'')::date IS NULL OR t.data_ocorrencia = NULLIF($2,'')::date)
-
-      UNION ALL
-
-      -- HIGIENE (com hora_ocorrencia)
-      SELECT
-        h.id,
-        h.paciente_id,
-        p.nome AS residente,
-        h.usuario_id,
-        h.data_ocorrencia AS data_universal,
-        h.hora_ocorrencia::text AS hora,
-        NULL AS periodo,
-        NULL AS alimentacao,
-        NULL AS temperatura,
-        NULL AS pressao,
-        h.observacoes,
-        h.responsavel_nome AS responsavel,
-        'higiene' AS tipo
-      FROM higiene_relatorios h
-      LEFT JOIN pacientes p ON h.paciente_id = p.id
-      WHERE
-        (CAST(NULLIF($1,'') AS INT) IS NULL OR h.paciente_id = CAST(NULLIF($1,'') AS INT))
-        AND (NULLIF($2,'')::date IS NULL OR h.data_ocorrencia = NULLIF($2,'')::date)
-
-      UNION ALL
-
-      -- DIÁRIO (com hora)
-      SELECT
-        r.id,
-        r.paciente_id,
-        p.nome AS residente,
-        r.usuario_id,
-        r.data AS data_universal,
-        r.hora::text AS hora,
-        r.periodo,
-        r.alimentacao,
-        r.temperatura,
-        r.pressao,
-        r.observacoes,
-        r.responsavel,
-        'relatorio_diario' AS tipo
-      FROM relatorios_diarios r
-      LEFT JOIN pacientes p ON r.paciente_id = p.id
-      WHERE
-        (CAST(NULLIF($1,'') AS INT) IS NULL OR r.paciente_id = CAST(NULLIF($1,'') AS INT))
-        AND (NULLIF($2,'')::date IS NULL OR r.data = NULLIF($2,'')::date)
-
+      ${UNIFIED_SELECT((alias) => `
+        WHERE
+          (CAST(NULLIF($1,'') AS INT) IS NULL OR ${alias}.paciente_id = CAST(NULLIF($1,'') AS INT))
+          AND (NULLIF($2,'')::date IS NULL OR ${alias}.${alias === 'r' ? 'data' : 'data_ocorrencia'} = NULLIF($2,'')::date)
+      `)}
       ORDER BY data_universal DESC NULLS LAST, hora DESC NULLS LAST
     `;
 
@@ -236,7 +236,7 @@ app.put('/api/pacientes/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { nome, idade, quarto, diagnostico, medicamentos, contato_emergencia, data_internacao, responsavel_familiar_nome, responsavel_familiar_contato, link_medicamentos } = req.body;
-    if (!nome) return res.status(400).json({ error: 'O campo "nome" é obrigatório.' });
+  if (!nome) return res.status(400).json({ error: 'O campo "nome" é obrigatório.' });
     const sql = `
       UPDATE pacientes 
       SET nome = $1, idade = $2, quarto = $3, diagnostico = $4, medicamentos = $5, contato_emergencia = $6, data_internacao = $7, responsavel_familiar_nome = $8, responsavel_familiar_contato = $9, link_medicamentos = $10 
@@ -304,92 +304,10 @@ app.get('/api/pacientes/:id/relatorios', async (req, res) => {
     const { data } = req.query;     // opcional (YYYY-MM-DD)
 
     const query = `
-      -- ENFERMAGEM (sem hora)
-      SELECT
-        e.id,
-        e.paciente_id,
-        p.nome AS residente,
-        e.usuario_id,
-        e.data_ocorrencia AS data_universal,
-        NULL::text AS hora,
-        NULL AS periodo,
-        NULL AS alimentacao,
-        NULL AS temperatura,
-        NULL AS pressao,
-        e.observacoes,
-        e.responsavel_nome AS responsavel,
-        'evolucao_enfermagem' AS tipo
-      FROM evolucao_enfermagem e
-      LEFT JOIN pacientes p ON e.paciente_id = p.id
-      WHERE e.paciente_id = $1
-        AND (NULLIF($2,'')::date IS NULL OR e.data_ocorrencia = NULLIF($2,'')::date)
-
-      UNION ALL
-
-      -- TÉCNICO (sem hora)
-      SELECT
-        t.id,
-        t.paciente_id,
-        p.nome AS residente,
-        t.usuario_id,
-        t.data_ocorrencia AS data_universal,
-        NULL::text AS hora,
-        NULL AS periodo,
-        NULL AS alimentacao,
-        NULL AS temperatura,
-        NULL AS pressao,
-        t.observacoes,
-        t.responsavel_nome AS responsavel,
-        'evolucao_tecnico' AS tipo
-      FROM evolucao_tecnico t
-      LEFT JOIN pacientes p ON t.paciente_id = p.id
-      WHERE t.paciente_id = $1
-        AND (NULLIF($2,'')::date IS NULL OR t.data_ocorrencia = NULLIF($2,'')::date)
-
-      UNION ALL
-
-      -- HIGIENE (com hora)
-      SELECT
-        h.id,
-        h.paciente_id,
-        p.nome AS residente,
-        h.usuario_id,
-        h.data_ocorrencia AS data_universal,
-        h.hora_ocorrencia::text AS hora,
-        NULL AS periodo,
-        NULL AS alimentacao,
-        NULL AS temperatura,
-        NULL AS pressao,
-        h.observacoes,
-        h.responsavel_nome AS responsavel,
-        'higiene' AS tipo
-      FROM higiene_relatorios h
-      LEFT JOIN pacientes p ON h.paciente_id = p.id
-      WHERE h.paciente_id = $1
-        AND (NULLIF($2,'')::date IS NULL OR h.data_ocorrencia = NULLIF($2,'')::date)
-
-      UNION ALL
-
-      -- DIÁRIO (com hora)
-      SELECT
-        r.id,
-        r.paciente_id,
-        p.nome AS residente,
-        r.usuario_id,
-        r.data AS data_universal,
-        r.hora::text AS hora,
-        r.periodo,
-        r.alimentacao,
-        r.temperatura,
-        r.pressao,
-        r.observacoes,
-        r.responsavel,
-        'relatorio_diario' AS tipo
-      FROM relatorios_diarios r
-      LEFT JOIN pacientes p ON r.paciente_id = p.id
-      WHERE r.paciente_id = $1
-        AND (NULLIF($2,'')::date IS NULL OR r.data = NULLIF($2,'')::date)
-
+      ${UNIFIED_SELECT((alias) => `
+        WHERE ${alias}.paciente_id = $1
+          AND (NULLIF($2,'')::date IS NULL OR ${alias}.${alias === 'r' ? 'data' : 'data_ocorrencia'} = NULLIF($2,'')::date)
+      `)}
       ORDER BY data_universal DESC NULLS LAST, hora DESC NULLS LAST
     `;
 
