@@ -42,6 +42,7 @@ const isAdmin = (req, res, next) => {
   }
 };
 
+
 // --- ROTAS DE AUTENTICAÇÃO (PÚBLICAS) ---
 app.post('/api/usuarios/registrar', async (req, res) => {
   const { nome, email, senha } = req.body;
@@ -79,8 +80,10 @@ app.post('/api/usuarios/login', async (req, res) => {
   }
 });
 
+
 // APLICA O MIDDLEWARE DE AUTENTICAÇÃO GERAL
 app.use(autenticarToken);
+
 
 // --- ROTAS DA API PARA RESIDENTES (PACIENTES) ---
 app.get('/api/pacientes', async (req, res) => {
@@ -96,92 +99,85 @@ app.get('/api/relatorios', async (req, res) => {
   try {
     const { pacienteId, data, tipo } = req.query;
 
+    // Query SQL com UNION para juntar todas as tabelas
     const query = `
       SELECT
-        e.id,
-        e.paciente_id,
-        p.nome AS residente,
-        e.usuario_id,
-        e.data_ocorrencia AS data_universal,
-        e.hora_ocorrencia AS hora,
+        id,
+        paciente_id,
+        usuario_id,
+        data_ocorrencia AS data_universal,
+        hora_ocorrencia AS hora,
         NULL AS periodo,
         NULL AS alimentacao,
         NULL AS temperatura,
         NULL AS pressao,
-        e.observacoes,
-        e.responsavel_nome AS responsavel,
+        observacoes,
+        responsavel_nome AS responsavel,
         'evolucao_enfermagem' AS tipo
-      FROM evolucao_enfermagem e
-      LEFT JOIN pacientes p ON e.paciente_id = p.id
+      FROM evolucao_enfermagem
       WHERE 
-        ($1::text IS NULL OR $1 = '' OR e.paciente_id = $1)
-        AND ($2::text IS NULL OR $2 = '' OR e.data_ocorrencia = $2)
+        ($1::text IS NULL OR $1 = '' OR paciente_id = $1)
+        AND ($2::text IS NULL OR $2 = '' OR data_ocorrencia = $2)
       
       UNION ALL
 
       SELECT
-        t.id,
-        t.paciente_id,
-        p.nome AS residente,
-        t.usuario_id,
-        t.data_ocorrencia AS data_universal,
+        id,
+        paciente_id,
+        usuario_id,
+        data_ocorrencia AS data_universal,
         NULL AS hora,
         NULL AS periodo,
         NULL AS alimentacao,
         NULL AS temperatura,
         NULL AS pressao,
-        t.observacoes,
-        t.responsavel_nome AS responsavel,
+        observacoes,
+        responsavel_nome AS responsavel,
         'evolucao_tecnico' AS tipo
-      FROM evolucao_tecnico t
-      LEFT JOIN pacientes p ON t.paciente_id = p.id
+      FROM evolucao_tecnico
       WHERE 
-        ($1::text IS NULL OR $1 = '' OR t.paciente_id = $1)
-        AND ($2::text IS NULL OR $2 = '' OR t.data_ocorrencia = $2)
+        ($1::text IS NULL OR $1 = '' OR paciente_id = $1)
+        AND ($2::text IS NULL OR $2 = '' OR data_ocorrencia = $2)
 
       UNION ALL
 
       SELECT
-        h.id,
-        h.paciente_id,
-        p.nome AS residente,
-        h.usuario_id,
-        h.data_ocorrencia AS data_universal,
-        h.hora_ocorrencia AS hora,
+        id,
+        paciente_id,
+        usuario_id,
+        data_ocorrencia AS data_universal,
+        hora_ocorrencia AS hora,
         NULL AS periodo,
         NULL AS alimentacao,
         NULL AS temperatura,
         NULL AS pressao,
-        h.observacoes,
-        h.responsavel_nome AS responsavel,
+        observacoes,
+        responsavel_nome AS responsavel,
         'higiene' AS tipo
-      FROM higiene_relatorios h
-      LEFT JOIN pacientes p ON h.paciente_id = p.id
+      FROM higiene_relatorios
       WHERE 
-        ($1::text IS NULL OR $1 = '' OR h.paciente_id = $1)
-        AND ($2::text IS NULL OR $2 = '' OR h.data_ocorrencia = $2)
+        ($1::text IS NULL OR $1 = '' OR paciente_id = $1)
+        AND ($2::text IS NULL OR $2 = '' OR data_ocorrencia = $2)
 
       UNION ALL
 
       SELECT
-        r.id,
-        r.paciente_id,
-        p.nome AS residente,
-        r.usuario_id,
-        r.data AS data_universal,
-        r.hora AS hora,
-        r.periodo,
-        r.alimentacao,
-        r.temperatura,
-        r.pressao,
-        r.observacoes,
-        r.responsavel,
+        id,
+        paciente_id,
+        usuario_id,
+        data AS data_universal,
+        hora AS hora,
+        periodo,
+        alimentacao,
+        temperatura,
+        pressao,
+        observacoes,
+        responsavel,
         'relatorio_diario' AS tipo
-      FROM relatorios_diarios r
-      LEFT JOIN pacientes p ON r.paciente_id = p.id
+      FROM relatorios_diarios
       WHERE 
-        ($1::text IS NULL OR $1 = '' OR r.paciente_id = $1)
-        AND ($2::text IS NULL OR $2 = '' OR r.data = $2)
+        ($1::text IS NULL OR $1 = '' OR paciente_id = $1)
+        AND ($2::text IS NULL OR $2 = '' OR data = $2)
 
       ORDER BY data_universal DESC NULLS LAST, hora DESC NULLS LAST
     `;
@@ -189,6 +185,7 @@ app.get('/api/relatorios', async (req, res) => {
     const values = [pacienteId || '', data || ''];
     const { rows } = await pool.query(query, values);
 
+    // Se quiser filtrar tipo no backend, faz isso aqui:
     const tipoFiltro = tipo && tipo.trim() !== '' ? tipo.trim() : null;
     const resultadoFiltrado = tipoFiltro
       ? rows.filter(row => row.tipo === tipoFiltro)
@@ -201,11 +198,126 @@ app.get('/api/relatorios', async (req, res) => {
   }
 });
 
+app.get('/api/pacientes/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('SELECT * FROM pacientes WHERE id = $1', [id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Residente não encontrado.' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar residente.' });
+  }
+});
+
+app.post('/api/pacientes', async (req, res) => {
+  try {
+    const { nome, idade, quarto, diagnostico, medicamentos, contato_emergencia, data_internacao, responsavel_familiar_nome, responsavel_familiar_contato, link_medicamentos } = req.body;
+    if (!nome) return res.status(400).json({ error: 'O campo "nome" é obrigatório.' });
+    const sql = `
+      INSERT INTO pacientes (nome, idade, quarto, diagnostico, medicamentos, contato_emergencia, data_internacao, responsavel_familiar_nome, responsavel_familiar_contato, link_medicamentos) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+      RETURNING *`;
+    const params = [nome, idade, quarto, diagnostico, medicamentos, contato_emergencia, data_internacao, responsavel_familiar_nome, responsavel_familiar_contato, link_medicamentos];
+    const result = await pool.query(sql, params);
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao cadastrar residente.' });
+  }
+});
+
+app.put('/api/pacientes/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nome, idade, quarto, diagnostico, medicamentos, contato_emergencia, data_internacao, responsavel_familiar_nome, responsavel_familiar_contato, link_medicamentos } = req.body;
+    if (!nome) return res.status(400).json({ error: 'O campo "nome" é obrigatório.' });
+    const sql = `
+      UPDATE pacientes 
+      SET nome = $1, idade = $2, quarto = $3, diagnostico = $4, medicamentos = $5, contato_emergencia = $6, data_internacao = $7, responsavel_familiar_nome = $8, responsavel_familiar_contato = $9, link_medicamentos = $10 
+      WHERE id = $11 RETURNING *`;
+    const params = [nome, idade, quarto, diagnostico, medicamentos, contato_emergencia, data_internacao, responsavel_familiar_nome, responsavel_familiar_contato, link_medicamentos, id];
+    const result = await pool.query(sql, params);
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Residente não encontrado para atualização.' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao atualizar residente.' });
+  }
+});
+
+app.delete('/api/pacientes/:id', isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM pacientes WHERE id = $1', [id]);
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Residente não encontrado para deleção.' });
+    res.status(200).json({ message: `Residente com ID ${id} deletado com sucesso!` });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao deletar residente.' });
+  }
+});
+
+app.post('/api/pacientes/:id/arquivar', isAdmin, async (req, res) => {
+    const { id } = req.params;
+    const FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID;
+    if (!FOLDER_ID) return res.status(500).json({ error: 'ID da pasta do Google Drive não configurado no servidor.' });
+    try {
+        const auth = new google.auth.GoogleAuth({
+          credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON),
+            scopes: ['https://www.googleapis.com/auth/drive'],
+            });
+        const driveService = google.drive({ version: 'v3', auth });
+        const residenteRes = await pool.query('SELECT * FROM pacientes WHERE id = $1', [id]);
+        if (residenteRes.rows.length === 0) return res.status(404).json({ error: 'Residente não encontrado.' });
+        const residente = residenteRes.rows[0];
+
+        // Aqui você adicionaria a lógica para buscar todos os outros relatórios
+        let fileContent = `HISTÓRICO DO RESIDENTE: ${residente.nome}\n\n... (adicionar todos os dados aqui)`;
+        
+        const fileName = `ARQUIVO_Historico_${residente.nome.replace(/ /g, '_')}_ID_${residente.id}.txt`;
+        const fileMetadata = { name: fileName, parents: [FOLDER_ID] };
+        const bufferStream = new stream.PassThrough();
+        bufferStream.end(fileContent);
+
+        await driveService.files.create({
+            media: { mimeType: 'text/plain', body: bufferStream },
+            resource: fileMetadata,
+            fields: 'id',
+        });
+        await pool.query("UPDATE pacientes SET status = 'arquivado' WHERE id = $1", [id]);
+        res.status(200).json({ message: 'Residente arquivado com sucesso no Google Drive!' });
+    } catch (err) {
+      console.error("Erro ao arquivar residente:", err.message, err.stack);
+      res.status(500).json({ error: 'Falha ao arquivar residente.' });
+    }
+});
+
+
+// --- ROTAS DA API PARA RELATÓRIOS ESPECÍFICOS ---
+app.get('/api/pacientes/:id/relatorios', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data } = req.query; // recebe data mas ignora tipo
+    let query = `SELECT * FROM relatorios_diarios WHERE paciente_id = $1`;
+    let params = [id];
+
+    if (data) {
+      query += ` AND data = $2`;
+      params.push(data);
+    }
+
+    query += ' ORDER BY data DESC, hora DESC';
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro ao buscar relatórios.' });
+  }
+});
+
+
 app.post('/api/pacientes/:id/relatorios', async (req, res) => {
   try {
     const { id: paciente_id } = req.params;
-    const { data, hora, periodo, alimentacao, temperatura, pressao, observacoes } = req.body;
-    const responsavel = req.usuario.nome;
+    const { data, hora, periodo, alimentacao, temperatura, pressao, observacoes, responsavel } = req.body;
     if (!data || !periodo || !hora) return res.status(400).json({ error: 'Os campos "data", "periodo" e "hora" são obrigatórios.' });
     const sql = `INSERT INTO relatorios_diarios (paciente_id, data, hora, periodo, alimentacao, temperatura, pressao, observacoes, responsavel) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`;
     const params = [paciente_id, data, hora, periodo, alimentacao, temperatura, pressao, observacoes, responsavel];
