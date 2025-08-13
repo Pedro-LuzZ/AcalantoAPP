@@ -294,16 +294,22 @@ app.post('/api/pacientes/:id/arquivar', isAdmin, async (req, res) => {
 app.get('/api/pacientes/:id/relatorios', async (req, res) => {
   try {
     const { id } = req.params;
-    const { data } = req.query; // recebe data mas ignora tipo
-    let query = `SELECT * FROM relatorios_diarios WHERE paciente_id = $1`;
+    const { data } = req.query;
+
+    let query = `
+      SELECT r.*, p.nome AS residente
+      FROM relatorios_diarios r
+      LEFT JOIN pacientes p ON r.paciente_id = p.id
+      WHERE r.paciente_id = $1
+    `;
     let params = [id];
 
     if (data) {
-      query += ` AND data = $2`;
+      query += ` AND r.data = $2`;
       params.push(data);
     }
 
-    query += ' ORDER BY data DESC, hora DESC';
+    query += ' ORDER BY r.data DESC, r.hora DESC';
 
     const result = await pool.query(query, params);
     res.json(result.rows);
@@ -317,11 +323,26 @@ app.get('/api/pacientes/:id/relatorios', async (req, res) => {
 app.post('/api/pacientes/:id/relatorios', async (req, res) => {
   try {
     const { id: paciente_id } = req.params;
-    const { data, hora, periodo, alimentacao, temperatura, pressao, observacoes, responsavel } = req.body;
-    if (!data || !periodo || !hora) return res.status(400).json({ error: 'Os campos "data", "periodo" e "hora" são obrigatórios.' });
-    const sql = `INSERT INTO relatorios_diarios (paciente_id, data, hora, periodo, alimentacao, temperatura, pressao, observacoes, responsavel) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`;
-    const params = [paciente_id, data, hora, periodo, alimentacao, temperatura, pressao, observacoes, responsavel];
+    const { data, hora, periodo, alimentacao, temperatura, pressao, observacoes } = req.body;
+
+    if (!data || !periodo || !hora) {
+      return res.status(400).json({ error: 'Os campos "data", "periodo" e "hora" são obrigatórios.' });
+    }
+
+    const usuario_id = req.usuario.id;         // Pega o ID do usuário logado
+    const responsavel = req.usuario.nome;      // Pega o nome do usuário logado
+
+    const sql = `
+      INSERT INTO relatorios_diarios (
+        paciente_id, usuario_id, data, hora, periodo, alimentacao, temperatura, pressao, observacoes, responsavel
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+      ) RETURNING *
+    `;
+
+    const params = [paciente_id, usuario_id, data, hora, periodo, alimentacao, temperatura, pressao, observacoes, responsavel];
     const result = await pool.query(sql, params);
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Erro ao cadastrar relatório.' });
