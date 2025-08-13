@@ -95,19 +95,20 @@ app.get('/api/pacientes', async (req, res) => {
   }
 });
 
+// --- FEED UNIFICADO ---
 app.get('/api/relatorios', async (req, res) => {
   try {
     const { pacienteId, data, tipo } = req.query;
 
     const query = `
-      -- ENFERMAGEM (sem hora_ocorrencia)
+      -- ENFERMAGEM (sem hora)
       SELECT
         e.id,
         e.paciente_id,
         p.nome AS residente,
         e.usuario_id,
         e.data_ocorrencia AS data_universal,
-        NULL AS hora,
+        NULL::text AS hora,
         NULL AS periodo,
         NULL AS alimentacao,
         NULL AS temperatura,
@@ -130,7 +131,7 @@ app.get('/api/relatorios', async (req, res) => {
         p.nome AS residente,
         t.usuario_id,
         t.data_ocorrencia AS data_universal,
-        NULL AS hora,
+        NULL::text AS hora,
         NULL AS periodo,
         NULL AS alimentacao,
         NULL AS temperatura,
@@ -153,7 +154,7 @@ app.get('/api/relatorios', async (req, res) => {
         p.nome AS residente,
         h.usuario_id,
         h.data_ocorrencia AS data_universal,
-        h.hora_ocorrencia AS hora,
+        h.hora_ocorrencia::text AS hora,
         NULL AS periodo,
         NULL AS alimentacao,
         NULL AS temperatura,
@@ -176,7 +177,7 @@ app.get('/api/relatorios', async (req, res) => {
         p.nome AS residente,
         r.usuario_id,
         r.data AS data_universal,
-        r.hora AS hora,
+        r.hora::text AS hora,
         r.periodo,
         r.alimentacao,
         r.temperatura,
@@ -261,38 +262,38 @@ app.delete('/api/pacientes/:id', isAdmin, async (req, res) => {
 });
 
 app.post('/api/pacientes/:id/arquivar', isAdmin, async (req, res) => {
-    const { id } = req.params;
-    const FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID;
-    if (!FOLDER_ID) return res.status(500).json({ error: 'ID da pasta do Google Drive não configurado no servidor.' });
-    try {
-        const auth = new google.auth.GoogleAuth({
-          credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON),
-            scopes: ['https://www.googleapis.com/auth/drive'],
-            });
-        const driveService = google.drive({ version: 'v3', auth });
-        const residenteRes = await pool.query('SELECT * FROM pacientes WHERE id = $1', [id]);
-        if (residenteRes.rows.length === 0) return res.status(404).json({ error: 'Residente não encontrado.' });
-        const residente = residenteRes.rows[0];
+  const { id } = req.params;
+  const FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID;
+  if (!FOLDER_ID) return res.status(500).json({ error: 'ID da pasta do Google Drive não configurado no servidor.' });
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON),
+      scopes: ['https://www.googleapis.com/auth/drive'],
+    });
+    const driveService = google.drive({ version: 'v3', auth });
+    const residenteRes = await pool.query('SELECT * FROM pacientes WHERE id = $1', [id]);
+    if (residenteRes.rows.length === 0) return res.status(404).json({ error: 'Residente não encontrado.' });
+    const residente = residenteRes.rows[0];
 
-        // Aqui você adicionaria a lógica para buscar todos os outros relatórios
-        let fileContent = `HISTÓRICO DO RESIDENTE: ${residente.nome}\n\n... (adicionar todos os dados aqui)`;
-        
-        const fileName = `ARQUIVO_Historico_${residente.nome.replace(/ /g, '_')}_ID_${residente.id}.txt`;
-        const fileMetadata = { name: fileName, parents: [FOLDER_ID] };
-        const bufferStream = new stream.PassThrough();
-        bufferStream.end(fileContent);
+    // Aqui você adicionaria a lógica para buscar todos os outros relatórios
+    let fileContent = `HISTÓRICO DO RESIDENTE: ${residente.nome}\n\n... (adicionar todos os dados aqui)`;
+    
+    const fileName = `ARQUIVO_Historico_${residente.nome.replace(/ /g, '_')}_ID_${residente.id}.txt`;
+    const fileMetadata = { name: fileName, parents: [FOLDER_ID] };
+    const bufferStream = new stream.PassThrough();
+    bufferStream.end(fileContent);
 
-        await driveService.files.create({
-            media: { mimeType: 'text/plain', body: bufferStream },
-            resource: fileMetadata,
-            fields: 'id',
-        });
-        await pool.query("UPDATE pacientes SET status = 'arquivado' WHERE id = $1", [id]);
-        res.status(200).json({ message: 'Residente arquivado com sucesso no Google Drive!' });
-    } catch (err) {
-      console.error("Erro ao arquivar residente:", err.message, err.stack);
-      res.status(500).json({ error: 'Falha ao arquivar residente.' });
-    }
+    await driveService.files.create({
+      media: { mimeType: 'text/plain', body: bufferStream },
+      resource: fileMetadata,
+      fields: 'id',
+    });
+    await pool.query("UPDATE pacientes SET status = 'arquivado' WHERE id = $1", [id]);
+    res.status(200).json({ message: 'Residente arquivado com sucesso no Google Drive!' });
+  } catch (err) {
+    console.error("Erro ao arquivar residente:", err.message, err.stack);
+    res.status(500).json({ error: 'Falha ao arquivar residente.' });
+  }
 });
 
 
@@ -303,14 +304,14 @@ app.get('/api/pacientes/:id/relatorios', async (req, res) => {
     const { data } = req.query;     // opcional (YYYY-MM-DD)
 
     const query = `
-      -- ENFERMAGEM (sem hora_ocorrencia)
+      -- ENFERMAGEM (sem hora)
       SELECT
         e.id,
         e.paciente_id,
         p.nome AS residente,
         e.usuario_id,
         e.data_ocorrencia AS data_universal,
-        NULL AS hora,
+        NULL::text AS hora,
         NULL AS periodo,
         NULL AS alimentacao,
         NULL AS temperatura,
@@ -332,7 +333,7 @@ app.get('/api/pacientes/:id/relatorios', async (req, res) => {
         p.nome AS residente,
         t.usuario_id,
         t.data_ocorrencia AS data_universal,
-        NULL AS hora,
+        NULL::text AS hora,
         NULL AS periodo,
         NULL AS alimentacao,
         NULL AS temperatura,
@@ -354,7 +355,7 @@ app.get('/api/pacientes/:id/relatorios', async (req, res) => {
         p.nome AS residente,
         h.usuario_id,
         h.data_ocorrencia AS data_universal,
-        h.hora_ocorrencia AS hora,
+        h.hora_ocorrencia::text AS hora,
         NULL AS periodo,
         NULL AS alimentacao,
         NULL AS temperatura,
@@ -376,7 +377,7 @@ app.get('/api/pacientes/:id/relatorios', async (req, res) => {
         p.nome AS residente,
         r.usuario_id,
         r.data AS data_universal,
-        r.hora AS hora,
+        r.hora::text AS hora,
         r.periodo,
         r.alimentacao,
         r.temperatura,
@@ -505,52 +506,52 @@ app.post('/api/pacientes/:id/higiene', async (req, res) => {
 });
 
 app.get('/api/pacientes/:id/evolucao-tecnico', async (req, res) => {
-    try {
-      const { id } = req.params;
-      const sql = "SELECT * FROM evolucao_tecnico WHERE paciente_id = $1 ORDER BY data_ocorrencia DESC, id DESC";
-      const result = await pool.query(sql, [id]);
-      res.json(result.rows);
-    } catch (err) {
-      res.status(500).json({ error: 'Erro ao buscar evoluções do técnico.' });
-    }
+  try {
+    const { id } = req.params;
+    const sql = "SELECT * FROM evolucao_tecnico WHERE paciente_id = $1 ORDER BY data_ocorrencia DESC, id DESC";
+    const result = await pool.query(sql, [id]);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar evoluções do técnico.' });
+  }
 });
   
 app.post('/api/pacientes/:id/evolucao-tecnico', async (req, res) => {
-    const { id: paciente_id } = req.params;
-    const {
-      data_ocorrencia, turno, nivel_consciencia, pele_mucosa, lpp_local,
-      padrao_respiratorio, fr, em_uso_o2, tosse, alimentacao_via,
-      alimentacao_aceitacao, sono_repouso, cuidado_banho, cuidado_deambulacao,
-      cuidado_curativo, curativo_local, cuidados_outros, observacoes
-    } = req.body;
-  
-    const responsavel_nome = req.usuario.nome;
-    const usuario_id = req.usuario.id;
-  
-    try {
-      const sql = `
-        INSERT INTO evolucao_tecnico (
-          paciente_id, usuario_id, data_ocorrencia, turno, nivel_consciencia, pele_mucosa, lpp_local,
-          padrao_respiratorio, fr, em_uso_o2, tosse, alimentacao_via, alimentacao_aceitacao,
-          sono_repouso, cuidado_banho, cuidado_deambulacao, cuidado_curativo, curativo_local,
-          cuidados_outros, observacoes, responsavel_nome
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21
-        ) RETURNING *;
-      `;
-      const params = [
+  const { id: paciente_id } = req.params;
+  const {
+    data_ocorrencia, turno, nivel_consciencia, pele_mucosa, lpp_local,
+    padrao_respiratorio, fr, em_uso_o2, tosse, alimentacao_via,
+    alimentacao_aceitacao, sono_repouso, cuidado_banho, cuidado_deambulacao,
+    cuidado_curativo, curativo_local, cuidados_outros, observacoes
+  } = req.body;
+
+  const responsavel_nome = req.usuario.nome;
+  const usuario_id = req.usuario.id;
+
+  try {
+    const sql = `
+      INSERT INTO evolucao_tecnico (
         paciente_id, usuario_id, data_ocorrencia, turno, nivel_consciencia, pele_mucosa, lpp_local,
         padrao_respiratorio, fr, em_uso_o2, tosse, alimentacao_via, alimentacao_aceitacao,
         sono_repouso, cuidado_banho, cuidado_deambulacao, cuidado_curativo, curativo_local,
         cuidados_outros, observacoes, responsavel_nome
-      ];
-  
-      const result = await pool.query(sql, params);
-      res.status(201).json(result.rows[0]);
-    } catch (err) {
-      console.error("Erro ao salvar evolução do técnico:", err);
-      res.status(500).json({ error: 'Erro interno ao salvar evolução do técnico.' });
-    }
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21
+      ) RETURNING *;
+    `;
+    const params = [
+      paciente_id, usuario_id, data_ocorrencia, turno, nivel_consciencia, pele_mucosa, lpp_local,
+      padrao_respiratorio, fr, em_uso_o2, tosse, alimentacao_via, alimentacao_aceitacao,
+      sono_repouso, cuidado_banho, cuidado_deambulacao, cuidado_curativo, curativo_local,
+      cuidados_outros, observacoes, responsavel_nome
+    ];
+
+    const result = await pool.query(sql, params);
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error("Erro ao salvar evolução do técnico:", err);
+    res.status(500).json({ error: 'Erro interno ao salvar evolução do técnico.' });
+  }
 });
 
 // --- APLICAÇÃO INICIA AQUI ---
@@ -558,21 +559,3 @@ app.listen(PORT, () => {
   console.log(`Servidor rodando com sucesso na porta http://localhost:${PORT}`);
 });
 setInterval(() => {}, 300000);
-
-
-
-
-
-
-
-//evolucao_enfermagem
-// id	paciente_id	usuario_id	data_ocorrencia	grau_dependencia	mobilidade	nivel_consciencia	pele_e_mucosa	lesao_pressao_local	padrao_respiratorio	alteracoes_respiratorias	tosse	alimentacao_via	alimentacao_aceitacao	eliminacao_vesical	eliminacao_intestinal	constipacao_dias	sono_repouso	estado_geral	dor_status	dor_grau	dor_local	observacoes	responsavel_nome	data_criacao
-
-//evolucao_tecnico
-//id	paciente_id	usuario_id	data_ocorrencia	turno	nivel_consciencia	pele_mucosa	lpp_local	padrao_respiratorio	fr	em_uso_o2	tosse	alimentacao_via	alimentacao_aceitacao	sono_repouso	cuidado_banho	cuidado_deambulacao	cuidado_curativo	curativo_local	cuidados_outros	observacoes	responsavel_nome	data_criacao
-
-//higiene_relatorios
-//id	paciente_id	usuario_id	data_ocorrencia	hora_ocorrencia	banho_corporal	banho_parcial	higiene_intima	observacoes	responsavel_nome	data_criacao
-
-//relatorios_diarios
-//id	paciente_id	usuario_id	data	hora	periodo	alimentacao	temperatura	pressao	observacoes	responsavel
