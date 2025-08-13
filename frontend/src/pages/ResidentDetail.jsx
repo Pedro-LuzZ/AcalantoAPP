@@ -33,6 +33,7 @@ function ResidentDetail() {
   const fetchData = () => {
     setLoading(true);
     const requestResidentDetail = api.get(`/pacientes/${id}`);
+    // Mantém as rotas específicas já existentes
     const requestDailyReports = api.get(`/pacientes/${id}/relatorios`);
     const requestEvolucoesEnf = api.get(`/pacientes/${id}/evolucoes-enfermagem`);
     const requestHigiene = api.get(`/pacientes/${id}/higiene`);
@@ -41,7 +42,9 @@ function ResidentDetail() {
     Promise.all([requestResidentDetail, requestDailyReports, requestEvolucoesEnf, requestHigiene, requestEvolucoesTec])
       .then(([resResidente, resRelatorios, resEvolucoesEnf, resHigiene, resEvolucoesTec]) => {
         setResidente(resResidente.data);
-        setRelatorios(resRelatorios.data);
+        // Filtra apenas os relatórios diários para o componente ReportList
+        const diarios = Array.isArray(resRelatorios.data) ? resRelatorios.data.filter(r => r.tipo === 'relatorio_diario') : [];
+        setRelatorios(diarios);
         setEvolucoesEnfermagem(resEvolucoesEnf.data);
         setHigieneReports(resHigiene.data);
         setEvolucoesTecnico(resEvolucoesTec.data);

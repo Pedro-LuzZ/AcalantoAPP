@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../api'; // substitui axios
+import api from '../api';
 import { toast } from 'react-toastify';
 import '../App.css';
 
@@ -15,39 +15,40 @@ function AllReports() {
   });
 
   const fetchFeed = (filtrosAtuais) => {
-  setLoading(true);
+    setLoading(true);
 
-  const { pacienteId, data, tipo } = filtrosAtuais;
+    const { pacienteId, data, tipo } = filtrosAtuais;
 
-  if (!pacienteId) {
-    // Se quiser buscar todos os relatórios sem filtro, crie rota no backend para isso,
-    // ou simplesmente limpar a lista e não fazer requisição
-    setFeedItems([]);
-    setLoading(false);
-    return;
-  }
-
-  // Montar query string para data e tipo
-  const queryParams = new URLSearchParams();
-  if (data) queryParams.append('data', data);
-  if (tipo) queryParams.append('tipo', tipo);
-
-  api.get(`/pacientes/${pacienteId}/relatorios?${queryParams.toString()}`)
-    .then(response => {
-      setFeedItems(response.data);
-    })
-    .catch(error => {
-      console.error("Erro ao buscar o feed de atividades:", error);
-      toast.error("Não foi possível carregar o feed de atividades.");
-    })
-    .finally(() => {
+    // Se não tiver paciente selecionado, não busca nada
+    if (!pacienteId) {
+      setFeedItems([]);
       setLoading(false);
-    });
+      return;
+    }
+
+    // Montar query string para rota unificada /relatorios
+    const qs = new URLSearchParams();
+    qs.append('pacienteId', pacienteId);
+    if (data) qs.append('data', data);
+    if (tipo) qs.append('tipo', tipo);
+
+    api.get(`/relatorios?${qs.toString()}`)
+      .then(response => {
+        setFeedItems(response.data);
+      })
+      .catch(error => {
+        console.error('Erro ao buscar o feed de atividades:', error);
+        toast.error('Não foi possível carregar o feed de atividades.');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   useEffect(() => {
-    fetchFeed({}); 
-      api.get('/pacientes').then(response => {
+    // Inicialmente carrega a lista de residentes; não busca feed até escolher um residente
+    setLoading(false);
+    api.get('/pacientes').then(response => {
       setTodosResidentes(response.data);
     });
   }, []);
@@ -65,8 +66,10 @@ function AllReports() {
   const handleLimparFiltros = () => {
     const filtrosVazios = { pacienteId: '', data: '', tipo: '' };
     setFiltros(filtrosVazios);
-    fetchFeed(filtrosVazios);
+    setFeedItems([]);
   };
+
+  const fmtData = (d) => d ? new Date(d).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '—';
 
   if (loading) {
     return <div className="loading-spinner-container"><div className="loading-spinner"></div></div>;
@@ -95,6 +98,7 @@ function AllReports() {
             <option value="">Todos os Tipos</option>
             <option value="relatorio_diario">Relatório Diário</option>
             <option value="evolucao_enfermagem">Evolução de Enfermagem</option>
+            <option value="evolucao_tecnico">Evolução do Técnico</option>
             <option value="higiene">Relatório de Higiene</option>
           </select>
         </div>
@@ -112,27 +116,34 @@ function AllReports() {
               {item.tipo === 'relatorio_diario' && (
                 <>
                   <h3 style={{color: '#198754'}}>Relatório Diário</h3>
-                  <p><strong>Data:</strong> {new Date(item.data_universal).toLocaleDateString('pt-BR', {timeZone: 'UTC'})} às {item.hora} - {item.periodo}</p>
+                  <p><strong>Data:</strong> {fmtData(item.data_universal)} às {item.hora || '—'}{item.periodo ? ` - ${item.periodo}` : ''}</p>
                 </>
               )}
 
               {item.tipo === 'evolucao_enfermagem' && (
                 <>
                   <h3 style={{color: '#0d6efd'}}>Evolução de Enfermagem</h3>
-                   <p><strong>Data:</strong> {new Date(item.data_universal).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</p>
+                  <p><strong>Data:</strong> {fmtData(item.data_universal)}</p>
+                </>
+              )}
+
+              {item.tipo === 'evolucao_tecnico' && (
+                <>
+                  <h3 style={{color: '#ff7a00'}}>Evolução do Técnico</h3>
+                  <p><strong>Data:</strong> {fmtData(item.data_universal)}</p>
                 </>
               )}
 
               {item.tipo === 'higiene' && (
                 <>
                   <h3 style={{color: '#6c757d'}}>Relatório de Higiene</h3>
-                   <p><strong>Data:</strong> {new Date(item.data_universal).toLocaleDateString('pt-BR', {timeZone: 'UTC'})} às {item.hora}</p>
+                  <p><strong>Data:</strong> {fmtData(item.data_universal)} às {item.hora || '—'}</p>
                 </>
               )}
 
-              <p><strong>Residente:</strong> <Link to={`/paciente/${item.paciente_id}`}>{item.residente_nome}</Link></p>
-              <p><strong>Observações:</strong> {item.observacoes}</p>
-              <p><small>Responsável: {item.responsavel_nome}</small></p>
+              <p><strong>Residente:</strong> <Link to={`/paciente/${item.paciente_id}`}>{item.residente}</Link></p>
+              <p><strong>Observações:</strong> {item.observacoes || '—'}</p>
+              <p><small>Responsável: {item.responsavel || '—'}</small></p>
             </li>
           ))}
         </ul>

@@ -99,85 +99,96 @@ app.get('/api/relatorios', async (req, res) => {
   try {
     const { pacienteId, data, tipo } = req.query;
 
-    // Query SQL com UNION para juntar todas as tabelas
     const query = `
+      -- ENFERMAGEM (sem hora_ocorrencia)
       SELECT
-        id,
-        paciente_id,
-        usuario_id,
-        data_ocorrencia AS data_universal,
-        hora_ocorrencia AS hora,
-        NULL AS periodo,
-        NULL AS alimentacao,
-        NULL AS temperatura,
-        NULL AS pressao,
-        observacoes,
-        responsavel_nome AS responsavel,
-        'evolucao_enfermagem' AS tipo
-      FROM evolucao_enfermagem
-      WHERE 
-        ($1::text IS NULL OR $1 = '' OR paciente_id = $1)
-        AND ($2::text IS NULL OR $2 = '' OR data_ocorrencia = $2)
-      
-      UNION ALL
-
-      SELECT
-        id,
-        paciente_id,
-        usuario_id,
-        data_ocorrencia AS data_universal,
+        e.id,
+        e.paciente_id,
+        p.nome AS residente,
+        e.usuario_id,
+        e.data_ocorrencia AS data_universal,
         NULL AS hora,
         NULL AS periodo,
         NULL AS alimentacao,
         NULL AS temperatura,
         NULL AS pressao,
-        observacoes,
-        responsavel_nome AS responsavel,
-        'evolucao_tecnico' AS tipo
-      FROM evolucao_tecnico
-      WHERE 
-        ($1::text IS NULL OR $1 = '' OR paciente_id = $1)
-        AND ($2::text IS NULL OR $2 = '' OR data_ocorrencia = $2)
+        e.observacoes,
+        e.responsavel_nome AS responsavel,
+        'evolucao_enfermagem' AS tipo
+      FROM evolucao_enfermagem e
+      LEFT JOIN pacientes p ON e.paciente_id = p.id
+      WHERE
+        (CAST(NULLIF($1,'') AS INT) IS NULL OR e.paciente_id = CAST(NULLIF($1,'') AS INT))
+        AND (NULLIF($2,'')::date IS NULL OR e.data_ocorrencia = NULLIF($2,'')::date)
 
       UNION ALL
 
+      -- TÉCNICO (sem hora)
       SELECT
-        id,
-        paciente_id,
-        usuario_id,
-        data_ocorrencia AS data_universal,
-        hora_ocorrencia AS hora,
+        t.id,
+        t.paciente_id,
+        p.nome AS residente,
+        t.usuario_id,
+        t.data_ocorrencia AS data_universal,
+        NULL AS hora,
         NULL AS periodo,
         NULL AS alimentacao,
         NULL AS temperatura,
         NULL AS pressao,
-        observacoes,
-        responsavel_nome AS responsavel,
-        'higiene' AS tipo
-      FROM higiene_relatorios
-      WHERE 
-        ($1::text IS NULL OR $1 = '' OR paciente_id = $1)
-        AND ($2::text IS NULL OR $2 = '' OR data_ocorrencia = $2)
+        t.observacoes,
+        t.responsavel_nome AS responsavel,
+        'evolucao_tecnico' AS tipo
+      FROM evolucao_tecnico t
+      LEFT JOIN pacientes p ON t.paciente_id = p.id
+      WHERE
+        (CAST(NULLIF($1,'') AS INT) IS NULL OR t.paciente_id = CAST(NULLIF($1,'') AS INT))
+        AND (NULLIF($2,'')::date IS NULL OR t.data_ocorrencia = NULLIF($2,'')::date)
 
       UNION ALL
 
+      -- HIGIENE (com hora_ocorrencia)
       SELECT
-        id,
-        paciente_id,
-        usuario_id,
-        data AS data_universal,
-        hora AS hora,
-        periodo,
-        alimentacao,
-        temperatura,
-        pressao,
-        observacoes,
-        responsavel,
+        h.id,
+        h.paciente_id,
+        p.nome AS residente,
+        h.usuario_id,
+        h.data_ocorrencia AS data_universal,
+        h.hora_ocorrencia AS hora,
+        NULL AS periodo,
+        NULL AS alimentacao,
+        NULL AS temperatura,
+        NULL AS pressao,
+        h.observacoes,
+        h.responsavel_nome AS responsavel,
+        'higiene' AS tipo
+      FROM higiene_relatorios h
+      LEFT JOIN pacientes p ON h.paciente_id = p.id
+      WHERE
+        (CAST(NULLIF($1,'') AS INT) IS NULL OR h.paciente_id = CAST(NULLIF($1,'') AS INT))
+        AND (NULLIF($2,'')::date IS NULL OR h.data_ocorrencia = NULLIF($2,'')::date)
+
+      UNION ALL
+
+      -- DIÁRIO (com hora)
+      SELECT
+        r.id,
+        r.paciente_id,
+        p.nome AS residente,
+        r.usuario_id,
+        r.data AS data_universal,
+        r.hora AS hora,
+        r.periodo,
+        r.alimentacao,
+        r.temperatura,
+        r.pressao,
+        r.observacoes,
+        r.responsavel,
         'relatorio_diario' AS tipo
-      FROM relatorios_diarios
-      WHERE 
-        ($1::text IS NULL OR $1 = '' OR paciente_id = $1)
-        AND ($2::text IS NULL OR $2 = '' OR data = $2)
+      FROM relatorios_diarios r
+      LEFT JOIN pacientes p ON r.paciente_id = p.id
+      WHERE
+        (CAST(NULLIF($1,'') AS INT) IS NULL OR r.paciente_id = CAST(NULLIF($1,'') AS INT))
+        AND (NULLIF($2,'')::date IS NULL OR r.data = NULLIF($2,'')::date)
 
       ORDER BY data_universal DESC NULLS LAST, hora DESC NULLS LAST
     `;
@@ -185,13 +196,8 @@ app.get('/api/relatorios', async (req, res) => {
     const values = [pacienteId || '', data || ''];
     const { rows } = await pool.query(query, values);
 
-    // Se quiser filtrar tipo no backend, faz isso aqui:
     const tipoFiltro = tipo && tipo.trim() !== '' ? tipo.trim() : null;
-    const resultadoFiltrado = tipoFiltro
-      ? rows.filter(row => row.tipo === tipoFiltro)
-      : rows;
-
-    res.json(resultadoFiltrado);
+    res.json(tipoFiltro ? rows.filter(r => r.tipo === tipoFiltro) : rows);
   } catch (error) {
     console.error('Erro ao buscar relatórios:', error);
     res.status(500).json({ error: 'Erro ao buscar relatórios.' });
@@ -293,28 +299,104 @@ app.post('/api/pacientes/:id/arquivar', isAdmin, async (req, res) => {
 // --- ROTAS DA API PARA RELATÓRIOS ESPECÍFICOS ---
 app.get('/api/pacientes/:id/relatorios', async (req, res) => {
   try {
-    const { id } = req.params;
-    const { data } = req.query;
+    const { id } = req.params;      // paciente_id
+    const { data } = req.query;     // opcional (YYYY-MM-DD)
 
-    let query = `
-      SELECT r.*, p.nome AS residente
+    const query = `
+      -- ENFERMAGEM (sem hora_ocorrencia)
+      SELECT
+        e.id,
+        e.paciente_id,
+        p.nome AS residente,
+        e.usuario_id,
+        e.data_ocorrencia AS data_universal,
+        NULL AS hora,
+        NULL AS periodo,
+        NULL AS alimentacao,
+        NULL AS temperatura,
+        NULL AS pressao,
+        e.observacoes,
+        e.responsavel_nome AS responsavel,
+        'evolucao_enfermagem' AS tipo
+      FROM evolucao_enfermagem e
+      LEFT JOIN pacientes p ON e.paciente_id = p.id
+      WHERE e.paciente_id = $1
+        AND (NULLIF($2,'')::date IS NULL OR e.data_ocorrencia = NULLIF($2,'')::date)
+
+      UNION ALL
+
+      -- TÉCNICO (sem hora)
+      SELECT
+        t.id,
+        t.paciente_id,
+        p.nome AS residente,
+        t.usuario_id,
+        t.data_ocorrencia AS data_universal,
+        NULL AS hora,
+        NULL AS periodo,
+        NULL AS alimentacao,
+        NULL AS temperatura,
+        NULL AS pressao,
+        t.observacoes,
+        t.responsavel_nome AS responsavel,
+        'evolucao_tecnico' AS tipo
+      FROM evolucao_tecnico t
+      LEFT JOIN pacientes p ON t.paciente_id = p.id
+      WHERE t.paciente_id = $1
+        AND (NULLIF($2,'')::date IS NULL OR t.data_ocorrencia = NULLIF($2,'')::date)
+
+      UNION ALL
+
+      -- HIGIENE (com hora)
+      SELECT
+        h.id,
+        h.paciente_id,
+        p.nome AS residente,
+        h.usuario_id,
+        h.data_ocorrencia AS data_universal,
+        h.hora_ocorrencia AS hora,
+        NULL AS periodo,
+        NULL AS alimentacao,
+        NULL AS temperatura,
+        NULL AS pressao,
+        h.observacoes,
+        h.responsavel_nome AS responsavel,
+        'higiene' AS tipo
+      FROM higiene_relatorios h
+      LEFT JOIN pacientes p ON h.paciente_id = p.id
+      WHERE h.paciente_id = $1
+        AND (NULLIF($2,'')::date IS NULL OR h.data_ocorrencia = NULLIF($2,'')::date)
+
+      UNION ALL
+
+      -- DIÁRIO (com hora)
+      SELECT
+        r.id,
+        r.paciente_id,
+        p.nome AS residente,
+        r.usuario_id,
+        r.data AS data_universal,
+        r.hora AS hora,
+        r.periodo,
+        r.alimentacao,
+        r.temperatura,
+        r.pressao,
+        r.observacoes,
+        r.responsavel,
+        'relatorio_diario' AS tipo
       FROM relatorios_diarios r
       LEFT JOIN pacientes p ON r.paciente_id = p.id
       WHERE r.paciente_id = $1
+        AND (NULLIF($2,'')::date IS NULL OR r.data = NULLIF($2,'')::date)
+
+      ORDER BY data_universal DESC NULLS LAST, hora DESC NULLS LAST
     `;
-    let params = [id];
 
-    if (data) {
-      query += ` AND r.data = $2`;
-      params.push(data);
-    }
-
-    query += ' ORDER BY r.data DESC, r.hora DESC';
-
-    const result = await pool.query(query, params);
-    res.json(result.rows);
+    const values = [id, data || ''];
+    const { rows } = await pool.query(query, values);
+    res.json(rows);
   } catch (err) {
-    console.error(err);
+    console.error('Erro ao buscar relatórios (por paciente):', err);
     res.status(500).json({ error: 'Erro ao buscar relatórios.' });
   }
 });
