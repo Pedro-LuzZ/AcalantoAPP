@@ -1,0 +1,77 @@
+/* ======= Design tokens ======= */
+:root{
+    --bg:#ffffff;
+    --text:#111827;
+    --muted:#6b7280;
+    --border:#e5e7eb;
+  
+    --primary:#2563eb;
+    --primary-600:#1d4ed8;
+  
+    --success-bg:#e9f8ee;
+    --success-border:#bfe7cb;
+  
+    --warn-bg:#fff7db;
+    --warn-border:#f0dfa6;
+  
+    --radius:12px;
+    --shadow:0 10px 30px rgba(0,0,0,.12);
+  }
+  
+  /* Base */
+  html,body{background:var(--bg); color:var(--text);}
+  h1,h2,h3{line-height:1.2}
+  
+  /* ======= Cards / Badges ======= */
+  .card{
+    background:#fff; border:1px solid var(--border); border-radius:var(--radius);
+    box-shadow:var(--shadow);
+  }
+  .badge{
+    display:inline-block; padding:4px 8px; border-radius:999px; font-size:12px; border:1px solid var(--border);
+  }
+  .badge--success{ background:var(--success-bg); border-color:var(--success-border); }
+  .badge--warn{ background:var(--warn-bg); border-color:var(--warn-border); }
+  
+  /* ======= Inputs ======= */
+  .input, .select, .textarea{
+    width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:10px; background:#fff;
+  }
+  .textarea{ resize:vertical; }
+  
+  /* ======= Buttons ======= */
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center;
+    gap:8px; padding:10px 14px; border-radius:10px; cursor:pointer; font-weight:700;
+    border:1px solid var(--border); background:#fff; color:var(--text);
+  }
+  .btn:disabled{ opacity:.7; cursor:not-allowed; }
+  .btn--primary{ border-color:var(--primary); background:var(--primary); color:#fff; }
+  .btn--primary:hover{ background:var(--primary-600); border-color:var(--primary-600); }
+  .btn--ghost{ background:#f7f7f7; }
+  
+  /* ======= Modal ======= */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.35);
+    display:grid; place-items:center; z-index:9999; padding:16px;
+  }
+  .modal-card{
+    width:min(720px,100%); background:#fff; border:1px solid var(--border);
+    border-radius:var(--radius); box-shadow:var(--shadow);
+    display:grid; gap:12px; padding:20px;
+  }
+  .modal-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; }
+  
+  /* ======= Grids ======= */
+  .grid-4{ display:grid; grid-template-columns:1.5fr .9fr .8fr .8fr; gap:10px; }
+  .grid-3{ display:grid; grid-template-columns:1.5fr 1fr 1fr; gap:10px; }
+  @media (max-width: 720px){
+    .grid-4, .grid-3{ grid-template-columns:1fr; }
+  }
+  
+  /* ======= Table (opcional, se quiser padronizar listas) ======= */
+  .table{ width:100%; border-collapse:collapse; font-size:14px; }
+  .table thead{ background:#fafafa; }
+  .table th, .table td{ text-align:left; padding:12px; }
+  .table tr + tr{ border-top:1px solid #f0f0f0; }
+  

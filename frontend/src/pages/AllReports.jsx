@@ -1,157 +1,370 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import api from '../api';
-import { toast } from 'react-toastify';
-import '../App.css';
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import api from "../api";
+import AddReportModal from "../components/AddReportModal";
 
-function AllReports() {
-  const [feedItems, setFeedItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [todosResidentes, setTodosResidentes] = useState([]);
-  const [filtros, setFiltros] = useState({
-    pacienteId: '',
-    data: '',
-    tipo: ''
+/** Hoje no formato YYYY-MM-DD em America/Sao_Paulo */
+function todayYmdSP() {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   });
+  return fmt.format(new Date()); // en-CA => YYYY-MM-DD
+}
 
-  const fetchFeed = (filtrosAtuais) => {
-    setLoading(true);
+const TIPO_LABEL = {
+  relatorio_diario: "Relatório diário",
+  evolucao_enfermagem: "Evolução (Enfermagem)",
+  evolucao_tecnico: "Evolução (Técnico)",
+  higiene: "Higiene",
+};
 
-    const { pacienteId, data, tipo } = filtrosAtuais;
+export default function AllReports() {
+  const location = useLocation();
+  const navigate = useNavigate();
 
-    // Se não tiver paciente selecionado, não busca nada
-    if (!pacienteId) {
-      setFeedItems([]);
-      setLoading(false);
-      return;
-    }
+  // filtros
+  const [date, setDate] = useState(todayYmdSP());
+  const [pacienteId, setPacienteId] = useState("");
+  const [tipo, setTipo] = useState("");
+  const [q, setQ] = useState("");
 
-    // Montar query string para rota unificada /relatorios
-    const qs = new URLSearchParams();
-    qs.append('pacienteId', pacienteId);
-    if (data) qs.append('data', data);
-    if (tipo) qs.append('tipo', tipo);
+  // dados
+  const [pacientes, setPacientes] = useState([]);
+  const [rows, setRows] = useState([]);
 
-    api.get(`/relatorios?${qs.toString()}`)
-      .then(response => {
-        setFeedItems(response.data);
-      })
-      .catch(error => {
-        console.error('Erro ao buscar o feed de atividades:', error);
-        toast.error('Não foi possível carregar o feed de atividades.');
-      })
-      .finally(() => {
-        setLoading(false);
+  // ui
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // modal "Adicionar Relatório"
+  const [showAdd, setShowAdd] = useState(false);
+  const [prefill, setPrefill] = useState({ pacienteId: null, data: null });
+
+  // Lê querystring: ?novo=1&pacienteId=...&data=...&tipo=...
+  useEffect(() => {
+    const qs = new URLSearchParams(location.search);
+
+    const qsDate = qs.get("data");
+    const qsPac = qs.get("pacienteId");
+    const qsTipo = qs.get("tipo");
+    const qsNovo = qs.get("novo");
+
+    if (qsDate) setDate(qsDate);
+    if (qsPac) setPacienteId(qsPac);
+    if (qsTipo) setTipo(qsTipo);
+
+    if (qsNovo === "1") {
+      setPrefill({
+        pacienteId: qsPac || null,
+        data: qsDate || null,
       });
-  };
+      setShowAdd(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
+
+  async function loadPacientes() {
+    try {
+      const { data } = await api.get("/pacientes");
+      setPacientes(data || []);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function loadReports() {
+    setLoading(true);
+    setError("");
+    try {
+      const { data } = await api.get("/relatorios", {
+        params: {
+          pacienteId: pacienteId || "",
+          data: date || "",
+          tipo: tipo || "",
+        },
+      });
+      // /api/relatorios retorna um array
+      setRows(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error(e);
+      if (e.response) {
+        const body =
+          typeof e.response.data === "string"
+            ? e.response.data
+            : e.response.data?.error || JSON.stringify(e.response.data);
+        setError(`HTTP ${e.response.status}: ${body?.slice?.(0, 200)}`);
+      } else {
+        setError(e.message || "Falha ao carregar relatórios.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    // Inicialmente carrega a lista de residentes; não busca feed até escolher um residente
-    setLoading(false);
-    api.get('/pacientes').then(response => {
-      setTodosResidentes(response.data);
-    });
+    loadPacientes();
   }, []);
 
-  const handleFiltroChange = (event) => {
-    const { name, value } = event.target;
-    setFiltros(prev => ({ ...prev, [name]: value }));
-  };
+  useEffect(() => {
+    loadReports();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, pacienteId, tipo]);
 
-  const handleAplicarFiltros = (event) => {
-    event.preventDefault();
-    fetchFeed(filtros);
-  };
+  const filtered = useMemo(() => {
+    if (!q.trim()) return rows;
+    const s = q.trim().toLowerCase();
+    return rows.filter(
+      (r) =>
+        r.residente?.toLowerCase().includes(s) ||
+        r.observacoes?.toLowerCase().includes(s)
+    );
+  }, [rows, q]);
 
-  const handleLimparFiltros = () => {
-    const filtrosVazios = { pacienteId: '', data: '', tipo: '' };
-    setFiltros(filtrosVazios);
-    setFeedItems([]);
-  };
+  function handleClearFilters() {
+    setPacienteId("");
+    setTipo("");
+    setQ("");
+    setDate(todayYmdSP());
+    navigate("/relatorios", { replace: true });
+  }
 
-  const fmtData = (d) => d ? new Date(d).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '—';
-
-  if (loading) {
-    return <div className="loading-spinner-container"><div className="loading-spinner"></div></div>;
+  function handleCloseAdd() {
+    setShowAdd(false);
+    // limpa a query para não reabrir ao voltar
+    navigate("/relatorios", { replace: true });
+    // recarrega lista para refletir o novo relatório
+    loadReports();
   }
 
   return (
-    <div>
-      <h2>Feed de Atividades Recentes</h2>
-      <form onSubmit={handleAplicarFiltros} className="filter-form">
-        <div className="form-group">
-          <label htmlFor="pacienteId">Filtrar por Residente:</label>
-          <select name="pacienteId" id="pacienteId" value={filtros.pacienteId} onChange={handleFiltroChange}>
-            <option value="">Todos os Residentes</option>
-            {todosResidentes.map(r => (
-              <option key={r.id} value={r.id}>{r.nome}</option>
-            ))}
-          </select>
+    <div style={{ padding: 24, display: "grid", gap: 16 }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 12,
+          flexWrap: "wrap",
+          alignItems: "end",
+          justifyContent: "space-between",
+        }}
+      >
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>
+            Todos os Relatórios
+          </h1>
+          <div style={{ opacity: 0.7, fontSize: 13 }}>
+            Filtre por paciente, data e tipo.
+          </div>
         </div>
-        <div className="form-group">
-          <label htmlFor="data">Filtrar por Data:</label>
-          <input type="date" name="data" id="data" value={filtros.data} onChange={handleFiltroChange} />
+
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
+          <label style={{ fontSize: 14 }}>
+            Data:&nbsp;
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              style={{ padding: "6px 8px" }}
+            />
+          </label>
+
+          <label style={{ fontSize: 14 }}>
+            Paciente:&nbsp;
+            <select
+              value={pacienteId}
+              onChange={(e) => setPacienteId(e.target.value)}
+              style={{ padding: "6px 8px", minWidth: 200 }}
+            >
+              <option value="">Todos</option>
+              {pacientes.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nome}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label style={{ fontSize: 14 }}>
+            Tipo:&nbsp;
+            <select
+              value={tipo}
+              onChange={(e) => setTipo(e.target.value)}
+              style={{ padding: "6px 8px" }}
+            >
+              <option value="">Todos</option>
+              <option value="relatorio_diario">Relatório diário</option>
+              <option value="evolucao_enfermagem">Evolução (Enfermagem)</option>
+              <option value="evolucao_tecnico">Evolução (Técnico)</option>
+              <option value="higiene">Higiene</option>
+            </select>
+          </label>
+
+          <input
+            placeholder="Buscar (nome/observações)"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            style={{ padding: "6px 10px", minWidth: 220 }}
+          />
+
+          <button
+            onClick={loadReports}
+            style={{ padding: "6px 12px", border: "1px solid #ccc" }}
+          >
+            Atualizar
+          </button>
+
+          <button
+            onClick={handleClearFilters}
+            style={{ padding: "6px 12px", border: "1px solid #ccc" }}
+            title="Limpar filtros"
+          >
+            Limpar
+          </button>
+
+          <button
+            onClick={() => {
+              setPrefill({ pacienteId: pacienteId || null, data: date || null });
+              setShowAdd(true);
+            }}
+            style={{
+              padding: "8px 12px",
+              border: "1px solid #3b82f6",
+              background: "#3b82f6",
+              color: "#fff",
+              borderRadius: 8,
+              fontWeight: 600,
+            }}
+          >
+            Adicionar Relatório
+          </button>
         </div>
-        <div className="form-group">
-          <label htmlFor="tipo">Filtrar por Tipo de Relatório:</label>
-          <select name="tipo" id="tipo" value={filtros.tipo} onChange={handleFiltroChange}>
-            <option value="">Todos os Tipos</option>
-            <option value="relatorio_diario">Relatório Diário</option>
-            <option value="evolucao_enfermagem">Evolução de Enfermagem</option>
-            <option value="evolucao_tecnico">Evolução do Técnico</option>
-            <option value="higiene">Relatório de Higiene</option>
-          </select>
-        </div>
-        <div className="filter-actions">
-          <button type="submit" className="save-btn">Filtrar</button>
-          <button type="button" onClick={handleLimparFiltros}>Limpar Filtros</button>
-        </div>
-      </form>
+      </div>
 
-      {feedItems.length > 0 ? (
-        <ul className="report-list">
-          {feedItems.map(item => (
-            <li key={`${item.tipo}-${item.id}`} className="report-item">
-              
-              {item.tipo === 'relatorio_diario' && (
-                <>
-                  <h3 style={{color: '#198754'}}>Relatório Diário</h3>
-                  <p><strong>Data:</strong> {fmtData(item.data_universal)} às {item.hora || '—'}{item.periodo ? ` - ${item.periodo}` : ''}</p>
-                </>
-              )}
+      <div
+        style={{
+          border: "1px solid #eee",
+          borderRadius: 12,
+          overflow: "hidden",
+        }}
+      >
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+          <thead style={{ background: "#fafafa" }}>
+            <tr>
+              <th style={{ textAlign: "left", padding: 12 }}>Data</th>
+              <th style={{ textAlign: "left", padding: 12 }}>Hora</th>
+              <th style={{ textAlign: "left", padding: 12 }}>Paciente</th>
+              <th style={{ textAlign: "left", padding: 12 }}>Tipo</th>
+              <th style={{ textAlign: "left", padding: 12 }}>Observações</th>
+              <th style={{ textAlign: "left", padding: 12 }}>Responsável</th>
+              <th style={{ textAlign: "left", padding: 12 }}>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading && (
+              <tr>
+                <td colSpan={7} style={{ padding: 14 }}>
+                  Carregando…
+                </td>
+              </tr>
+            )}
 
-              {item.tipo === 'evolucao_enfermagem' && (
-                <>
-                  <h3 style={{color: '#0d6efd'}}>Evolução de Enfermagem</h3>
-                  <p><strong>Data:</strong> {fmtData(item.data_universal)}</p>
-                </>
-              )}
+            {!loading && error && (
+              <tr>
+                <td colSpan={7} style={{ padding: 14, color: "#c00" }}>
+                  {error}
+                </td>
+              </tr>
+            )}
 
-              {item.tipo === 'evolucao_tecnico' && (
-                <>
-                  <h3 style={{color: '#ff7a00'}}>Evolução do Técnico</h3>
-                  <p><strong>Data:</strong> {fmtData(item.data_universal)}</p>
-                </>
-              )}
+            {!loading && !error && filtered.length === 0 && (
+              <tr>
+                <td colSpan={7} style={{ padding: 14 }}>
+                  Nada encontrado.
+                </td>
+              </tr>
+            )}
 
-              {item.tipo === 'higiene' && (
-                <>
-                  <h3 style={{color: '#6c757d'}}>Relatório de Higiene</h3>
-                  <p><strong>Data:</strong> {fmtData(item.data_universal)} às {item.hora || '—'}</p>
-                </>
-              )}
+            {!loading &&
+              !error &&
+              filtered.map((r, idx) => (
+                <tr key={idx} style={{ borderTop: "1px solid #f0f0f0" }}>
+                  <td style={{ padding: 12 }}>
+                    {r.data_universal
+                      ? new Date(r.data_universal + "T00:00:00").toLocaleDateString(
+                          "pt-BR"
+                        )
+                      : "-"}
+                  </td>
+                  <td style={{ padding: 12 }}>{r.hora || "-"}</td>
+                  <td style={{ padding: 12, fontWeight: 600 }}>{r.residente}</td>
+                  <td style={{ padding: 12 }}>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        padding: "2px 8px",
+                        borderRadius: 999,
+                        border: "1px solid #ddd",
+                        fontSize: 12,
+                        background: "#fafafa",
+                      }}
+                    >
+                      {TIPO_LABEL[r.tipo] || r.tipo}
+                    </span>
+                  </td>
+                  <td style={{ padding: 12, maxWidth: 420 }}>
+                    <div
+                      title={r.observacoes || ""}
+                      style={{
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {r.observacoes || "—"}
+                    </div>
+                  </td>
+                  <td style={{ padding: 12 }}>{r.responsavel || "—"}</td>
+                  <td style={{ padding: 12 }}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <Link
+                        to={`/paciente/${r.paciente_id}`}
+                        style={{ padding: "6px 10px", border: "1px solid #ddd" }}
+                      >
+                        Abrir prontuário
+                      </Link>
+                      {/* Atalho para novo relatório deste paciente na data atual do filtro */}
+                      <Link
+                        to={`/relatorios?novo=1&pacienteId=${r.paciente_id}&data=${date}`}
+                        style={{ padding: "6px 10px", border: "1px solid #ddd" }}
+                      >
+                        Fazer relatório
+                      </Link>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
 
-              <p><strong>Residente:</strong> <Link to={`/paciente/${item.paciente_id}`}>{item.residente}</Link></p>
-              <p><strong>Observações:</strong> {item.observacoes || '—'}</p>
-              <p><small>Responsável: {item.responsavel || '—'}</small></p>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p>Nenhuma atividade encontrada para os filtros selecionados.</p>
+      {/* Modal de novo relatório com pré-preenchimento */}
+      {showAdd && (
+        <AddReportModal
+          closeModal={handleCloseAdd}
+          initialPacienteId={prefill.pacienteId}
+          initialDate={prefill.data}
+        />
       )}
     </div>
   );
 }
-
-export default AllReports;

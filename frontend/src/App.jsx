@@ -14,6 +14,8 @@ import AddReportModal from './components/AddReportModal';
 import { useAuth } from './context/AuthContext';
 import Principal from './pages/Principal'; // <- NOVO
 import './App.css';
+import './styles/ui.css';
+
 
 function App() {
   const { isLoggedIn, logout } = useAuth();

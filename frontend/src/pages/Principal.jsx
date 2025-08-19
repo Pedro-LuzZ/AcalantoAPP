@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import api from "../api"; // ajuste o caminho se necessário
+import api from "../api"; // seu axios com baseURL + interceptor
 
 /** Hoje no formato YYYY-MM-DD em America/Sao_Paulo */
 function todayYmdSP() {
@@ -25,14 +25,17 @@ export default function Principal() {
     try {
       setLoading(true);
       setError("");
-      const { data } = await api.get("/dashboard/daily-status", { params: { date } });
+      const { data } = await api.get("/dashboard/daily-status", {
+        params: { date },
+      });
       setRows(data?.data || []);
     } catch (err) {
       console.error("Dashboard error:", err);
       if (err.response) {
-        const body = typeof err.response.data === "string"
-          ? err.response.data
-          : err.response.data?.error || JSON.stringify(err.response.data);
+        const body =
+          typeof err.response.data === "string"
+            ? err.response.data
+            : err.response.data?.error || JSON.stringify(err.response.data);
         setError(`HTTP ${err.response.status}: ${body?.slice?.(0, 200)}`);
       } else {
         setError(err.message || "Falha ao carregar a Dashboard.");
@@ -102,11 +105,7 @@ export default function Principal() {
             style={{ padding: "6px 10px", minWidth: 200 }}
           />
 
-          <button
-            onClick={load}
-            title="Atualizar"
-            style={{ padding: "6px 12px", border: "1px solid #ccc", cursor: "pointer" }}
-          >
+          <button onClick={load} title="Atualizar" style={{ padding: "6px 12px", border: "1px solid #ccc", cursor: "pointer" }}>
             Atualizar
           </button>
         </div>
@@ -156,27 +155,52 @@ export default function Principal() {
                 <td style={{ padding: 12, fontWeight: 600 }}>{item.nome}</td>
                 <td style={{ padding: 12 }}>
                   {item.has_daily ? (
-                    <span style={{ display: "inline-block", padding: "4px 8px", borderRadius: 999, background: "#e9f8ee", border: "1px solid #bfe7cb", fontSize: 12 }}>
+                    <span style={{
+                      display: "inline-block",
+                      padding: "4px 8px",
+                      borderRadius: 999,
+                      background: "#e9f8ee",
+                      border: "1px solid #bfe7cb",
+                      fontSize: 12
+                    }}>
                       Preenchido
                     </span>
                   ) : (
-                    <span style={{ display: "inline-block", padding: "4px 8px", borderRadius: 999, background: "#fff7db", border: "1px solid #f0dfa6", fontSize: 12 }}>
+                    <span style={{
+                      display: "inline-block",
+                      padding: "4px 8px",
+                      borderRadius: 999,
+                      background: "#fff7db",
+                      border: "1px solid #f0dfa6",
+                      fontSize: 12
+                    }}>
                       Pendente
                     </span>
                   )}
                 </td>
                 <td style={{ padding: 12 }}>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {item.has_daily ? (
-                      <Link to={`/relatorios?pacienteId=${item.id}&data=${date}`} style={{ padding: "6px 10px", border: "1px solid #ddd" }}>
+                    {item.has_daily && (
+                      <Link
+                        to={`/relatorios?pacienteId=${item.id}&data=${date}`}
+                        style={{ padding: "6px 10px", border: "1px solid #ddd" }}
+                      >
                         Abrir relatório
                       </Link>
-                    ) : (
-                      <Link to={`/relatorios?novo=1&pacienteId=${item.id}&data=${date}`} style={{ padding: "6px 10px", border: "1px solid #ddd" }}>
-                        Preencher agora
-                      </Link>
                     )}
-                    <Link to={`/paciente/${item.id}`} style={{ padding: "6px 10px", border: "1px solid #ddd" }}>
+
+                    {/* NOVO: sempre disponível */}
+                    <Link
+                      to={`/relatorios?novo=1&pacienteId=${item.id}&data=${date}`}
+                      style={{ padding: "6px 10px", border: "1px solid #ddd" }}
+                    >
+                      Fazer relatório
+                    </Link>
+
+                    <Link
+                      to={`/paciente/${item.id}`}
+                      style={{ padding: "6px 10px", border: "1px solid #ddd" }}
+                    >
                       Abrir prontuário
                     </Link>
                   </div>
