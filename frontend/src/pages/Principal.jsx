@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import api from "frontend/src/api"; // ajuste o caminho se necessário
+import api from "../api"; // ajuste o caminho se necessário
 
 /** Hoje no formato YYYY-MM-DD em America/Sao_Paulo */
 function todayYmdSP() {
