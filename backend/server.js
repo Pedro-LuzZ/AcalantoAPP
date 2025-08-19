@@ -84,6 +84,13 @@ app.post('/api/usuarios/login', async (req, res) => {
 // APLICA O MIDDLEWARE DE AUTENTICAÇÃO GERAL
 app.use(autenticarToken);
 
+/* =========================
+   NOVO BLOCO — DASHBOARD
+   ========================= */
+const dashboardRoutes = require('./routes/dashboard')(pool);
+app.use('/api', dashboardRoutes);
+/* ====== FIM NOVO BLOCO ====== */
+
 
 // --- ROTAS DA API PARA RESIDENTES (PACIENTES) ---
 app.get('/api/pacientes', async (req, res) => {
