@@ -14,6 +14,19 @@ function todayYmdSP() {
   return fmt.format(new Date()); // en-CA => YYYY-MM-DD
 }
 
+/** Formata valores 'YYYY-MM-DD' ou ISO para dd/mm/aaaa */
+function formatDateBR(value) {
+  if (!value) return "-";
+  const s = String(value);
+  // se vier ISO, pega só a parte YYYY-MM-DD
+  const ymd = s.includes("T") ? s.slice(0, 10) : s;
+  const [y, m, d] = ymd.split("-");
+  if (y && m && d) return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`;
+  // fallback robusto
+  const dt = new Date(value);
+  return isNaN(dt) ? "-" : dt.toLocaleDateString("pt-BR");
+}
+
 const TIPO_LABEL = {
   relatorio_diario: "Relatório diário",
   evolucao_enfermagem: "Evolução (Enfermagem)",
@@ -86,7 +99,6 @@ export default function AllReports() {
           tipo: tipo || "",
         },
       });
-      // /api/relatorios retorna um array
       setRows(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error(e);
@@ -173,7 +185,8 @@ export default function AllReports() {
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              style={{ padding: "6px 8px" }}
+              className="input"
+              style={{ width: 150 }}
             />
           </label>
 
@@ -182,7 +195,8 @@ export default function AllReports() {
             <select
               value={pacienteId}
               onChange={(e) => setPacienteId(e.target.value)}
-              style={{ padding: "6px 8px", minWidth: 200 }}
+              className="select"
+              style={{ minWidth: 200 }}
             >
               <option value="">Todos</option>
               {pacientes.map((p) => (
@@ -198,7 +212,8 @@ export default function AllReports() {
             <select
               value={tipo}
               onChange={(e) => setTipo(e.target.value)}
-              style={{ padding: "6px 8px" }}
+              className="select"
+              style={{ minWidth: 200 }}
             >
               <option value="">Todos</option>
               <option value="relatorio_diario">Relatório diário</option>
@@ -212,21 +227,15 @@ export default function AllReports() {
             placeholder="Buscar (nome/observações)"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            style={{ padding: "6px 10px", minWidth: 220 }}
+            className="input"
+            style={{ minWidth: 220 }}
           />
 
-          <button
-            onClick={loadReports}
-            style={{ padding: "6px 12px", border: "1px solid #ccc" }}
-          >
+          <button onClick={loadReports} className="btn" title="Atualizar">
             Atualizar
           </button>
 
-          <button
-            onClick={handleClearFilters}
-            style={{ padding: "6px 12px", border: "1px solid #ccc" }}
-            title="Limpar filtros"
-          >
+          <button onClick={handleClearFilters} className="btn" title="Limpar filtros">
             Limpar
           </button>
 
@@ -235,37 +244,24 @@ export default function AllReports() {
               setPrefill({ pacienteId: pacienteId || null, data: date || null });
               setShowAdd(true);
             }}
-            style={{
-              padding: "8px 12px",
-              border: "1px solid #3b82f6",
-              background: "#3b82f6",
-              color: "#fff",
-              borderRadius: 8,
-              fontWeight: 600,
-            }}
+            className="btn btn--primary"
           >
             Adicionar Relatório
           </button>
         </div>
       </div>
 
-      <div
-        style={{
-          border: "1px solid #eee",
-          borderRadius: 12,
-          overflow: "hidden",
-        }}
-      >
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-          <thead style={{ background: "#fafafa" }}>
+      <div className="card" style={{ overflow: "hidden" }}>
+        <table className="table">
+          <thead>
             <tr>
-              <th style={{ textAlign: "left", padding: 12 }}>Data</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Hora</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Paciente</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Tipo</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Observações</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Responsável</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Ações</th>
+              <th>Data</th>
+              <th>Hora</th>
+              <th>Paciente</th>
+              <th>Tipo</th>
+              <th>Observações</th>
+              <th>Responsável</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -296,27 +292,12 @@ export default function AllReports() {
             {!loading &&
               !error &&
               filtered.map((r, idx) => (
-                <tr key={idx} style={{ borderTop: "1px solid #f0f0f0" }}>
-                  <td style={{ padding: 12 }}>
-                    {r.data_universal
-                      ? new Date(r.data_universal + "T00:00:00").toLocaleDateString(
-                          "pt-BR"
-                        )
-                      : "-"}
-                  </td>
+                <tr key={idx}>
+                  <td style={{ padding: 12 }}>{formatDateBR(r.data_universal)}</td>
                   <td style={{ padding: 12 }}>{r.hora || "-"}</td>
                   <td style={{ padding: 12, fontWeight: 600 }}>{r.residente}</td>
                   <td style={{ padding: 12 }}>
-                    <span
-                      style={{
-                        display: "inline-block",
-                        padding: "2px 8px",
-                        borderRadius: 999,
-                        border: "1px solid #ddd",
-                        fontSize: 12,
-                        background: "#fafafa",
-                      }}
-                    >
+                    <span className="badge" title={r.tipo}>
                       {TIPO_LABEL[r.tipo] || r.tipo}
                     </span>
                   </td>
@@ -338,14 +319,15 @@ export default function AllReports() {
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                       <Link
                         to={`/paciente/${r.paciente_id}`}
-                        style={{ padding: "6px 10px", border: "1px solid #ddd" }}
+                        className="btn"
+                        style={{ padding: "6px 10px" }}
                       >
                         Abrir prontuário
                       </Link>
-                      {/* Atalho para novo relatório deste paciente na data atual do filtro */}
                       <Link
                         to={`/relatorios?novo=1&pacienteId=${r.paciente_id}&data=${date}`}
-                        style={{ padding: "6px 10px", border: "1px solid #ddd" }}
+                        className="btn"
+                        style={{ padding: "6px 10px" }}
                       >
                         Fazer relatório
                       </Link>
