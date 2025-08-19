@@ -1,16 +1,19 @@
-// src/lib/api.js (ou onde fica seu api.js)
+// src/lib/api.js
 import axios from 'axios';
 
-// BASE: VITE_API_URL SEM barra no final; fallback: localhost:3001
+// BASE absoluta do backend (sem barra no fim). No Railway, defina VITE_API_URL
+// no serviço do FRONT como: https://SEU-BACKEND.up.railway.app
 const BASE = (import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/$/, '');
 
 const api = axios.create({
-  // sempre termina com /api
   baseURL: `${BASE}/api`,
-  headers: { 'Cache-Control': 'no-cache' },
+  headers: {
+    'Cache-Control': 'no-cache',
+    Pragma: 'no-cache',
+  },
 });
 
-// Interceptor: injeta Authorization com qualquer chave usada pelo app
+// Injeta token e evita 304 em GET (cache buster + derruba validação condicional)
 api.interceptors.request.use(
   (config) => {
     const token =
@@ -19,9 +22,21 @@ api.interceptors.request.use(
       sessionStorage.getItem('token') ||
       '';
     if (token) config.headers.Authorization = `Bearer ${token}`;
+
+    if ((config.method || 'get').toLowerCase() === 'get') {
+      config.params = { ...(config.params || {}), _: Date.now() }; // cache buster
+      config.headers['If-None-Match'] = '';           // desarma 304 por ETag
+      config.headers['If-Modified-Since'] = '0';      // idem por Last-Modified
+    }
     return config;
   },
   (error) => Promise.reject(error)
 );
+
+// (opcional) logar base usada — ajuda depurar produção
+if (import.meta.env.DEV) {
+  // eslint-disable-next-line no-console
+  console.log('[api] baseURL =>', api.defaults.baseURL);
+}
 
 export default api;

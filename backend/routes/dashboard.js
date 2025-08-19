@@ -1,11 +1,19 @@
-// routes/dashboard.js
+// backend/routes/dashboard.js
 const express = require('express');
 
 module.exports = (pool) => {
   const router = express.Router();
 
+  // Middleware de no-cache só para as rotas deste router (evita 304)
+  router.use((req, res, next) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    next();
+  });
+
   // GET /api/dashboard/daily-status?date=YYYY-MM-DD (opcional)
-  // Mostra todos os pacientes ATIVOS e se já existe relatorio_diario na data.
+  // Lista pacientes ATIVOS e se já existe relatorio_diario na data informada/hoje.
   router.get('/dashboard/daily-status', async (req, res) => {
     const { date } = req.query; // 'YYYY-MM-DD' opcional
 
@@ -16,8 +24,8 @@ module.exports = (pool) => {
       SELECT
         p.id,
         p.nome,
-        rd.id            AS report_id,
-        (rd.id IS NOT NULL) AS has_daily
+        rd.id                          AS report_id,
+        (rd.id IS NOT NULL)            AS has_daily
       FROM pacientes p
       CROSS JOIN input_date i
       LEFT JOIN LATERAL (
@@ -40,8 +48,8 @@ module.exports = (pool) => {
         data: rows,
       });
     } catch (err) {
-      console.error("Erro /dashboard/daily-status:", err);
-      res.status(500).json({ error: "Erro ao carregar status diário", details: err.message });
+      console.error('Erro /dashboard/daily-status:', err);
+      res.status(500).json({ error: 'Erro ao carregar status diário', details: err.message });
     }
   });
 

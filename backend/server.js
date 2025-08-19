@@ -14,12 +14,23 @@ const stream = require('stream');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// evita ETag/304 em respostas dinâmicas
+app.set('etag', false);
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
+// CORS básico (deixe assim se já funciona em produção)
 app.use(cors());
 app.use(express.json());
+
+/* =========================
+   (Opcional) Health Check público
+   ========================= */
+app.get('/api/_health', (req, res) => {
+  res.json({ ok: true, ts: new Date().toISOString() });
+});
 
 // --- Middlewares de Autenticação ---
 const autenticarToken = (req, res, next) => {
@@ -85,11 +96,11 @@ app.post('/api/usuarios/login', async (req, res) => {
 app.use(autenticarToken);
 
 /* =========================
-   NOVO BLOCO — DASHBOARD
+   DASHBOARD (novo)
    ========================= */
 const dashboardRoutes = require('./routes/dashboard')(pool);
 app.use('/api', dashboardRoutes);
-/* ====== FIM NOVO BLOCO ====== */
+/* ====== fim dashboard ====== */
 
 
 // --- ROTAS DA API PARA RESIDENTES (PACIENTES) ---
@@ -243,7 +254,7 @@ app.put('/api/pacientes/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { nome, idade, quarto, diagnostico, medicamentos, contato_emergencia, data_internacao, responsavel_familiar_nome, responsavel_familiar_contato, link_medicamentos } = req.body;
-  if (!nome) return res.status(400).json({ error: 'O campo "nome" é obrigatório.' });
+    if (!nome) return res.status(400).json({ error: 'O campo "nome" é obrigatório.' });
     const sql = `
       UPDATE pacientes 
       SET nome = $1, idade = $2, quarto = $3, diagnostico = $4, medicamentos = $5, contato_emergencia = $6, data_internacao = $7, responsavel_familiar_nome = $8, responsavel_familiar_contato = $9, link_medicamentos = $10 
