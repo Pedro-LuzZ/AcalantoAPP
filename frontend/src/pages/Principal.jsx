@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 /** Hoje no formato YYYY-MM-DD em America/Sao_Paulo */
 function todayYmdSP() {
@@ -10,10 +11,6 @@ function todayYmdSP() {
     day: "2-digit",
   });
   return fmt.format(new Date()); // en-CA => YYYY-MM-DD
-}
-
-function getToken() {
-  return localStorage.getItem("token") || "";
 }
 
 export default function Principal() {
@@ -27,11 +24,19 @@ export default function Principal() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // >>> NOVO: pega o token do AuthContext
+  const { token: ctxToken, isLoggedIn } = useAuth();
+  const token =
+    ctxToken ||
+    localStorage.getItem("token") ||
+    sessionStorage.getItem("token") ||
+    "";
+
   async function load() {
-    const token = getToken();
     if (!token) {
       setError("Sem token. Faça login para continuar.");
       setLoading(false);
+      // Opcional: redirecionar automaticamente
       // navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
       return;
     }
@@ -48,7 +53,6 @@ export default function Principal() {
         setRows([]);
         return;
       }
-
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const json = await res.json();
@@ -62,9 +66,10 @@ export default function Principal() {
   }
 
   useEffect(() => {
-    load();
+    // só tenta carregar quando estiver logado ou se houver token persistido
+    if (isLoggedIn || token) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date]);
+  }, [date, isLoggedIn, token]);
 
   const filtered = useMemo(() => {
     let data = rows;
@@ -197,14 +202,12 @@ export default function Principal() {
                 <td style={{ padding: 12 }}>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     {item.has_daily ? (
-                      item.report_id ? (
-                        <Link
-                          to={`/relatorios?pacienteId=${item.id}&data=${date}`}
-                          style={{ padding: "6px 10px", border: "1px solid #ddd" }}
-                        >
-                          Abrir relatório
-                        </Link>
-                      ) : null
+                      <Link
+                        to={`/relatorios?pacienteId=${item.id}&data=${date}`}
+                        style={{ padding: "6px 10px", border: "1px solid #ddd" }}
+                      >
+                        Abrir relatório
+                      </Link>
                     ) : (
                       <Link
                         to={`/relatorios?novo=1&pacienteId=${item.id}&data=${date}`}
