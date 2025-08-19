@@ -1,21 +1,27 @@
+// src/lib/api.js (ou onde fica seu api.js)
 import axios from 'axios';
 
-// Cria uma instância do axios com configurações pré-definidas
+// BASE: VITE_API_URL SEM barra no final; fallback: localhost:3001
+const BASE = (import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/$/, '');
+
 const api = axios.create({
-  // A URL base da nossa API. Se a variável de ambiente não existir, usa localhost.
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001/api',
+  // sempre termina com /api
+  baseURL: `${BASE}/api`,
+  headers: { 'Cache-Control': 'no-cache' },
 });
 
-// "Interceptor": uma função que é executada ANTES de cada requisição
-// Isso garante que toda requisição feita pelo 'api' já terá o token de autenticação
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('authToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-}, (error) => {
-  return Promise.reject(error);
-});
+// Interceptor: injeta Authorization com qualquer chave usada pelo app
+api.interceptors.request.use(
+  (config) => {
+    const token =
+      localStorage.getItem('authToken') ||
+      localStorage.getItem('token') ||
+      sessionStorage.getItem('token') ||
+      '';
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 export default api;

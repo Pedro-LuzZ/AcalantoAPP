@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { Link } from "react-router-dom";
+import api from "../lib/api"; // ajuste o caminho se necessário
 
 /** Hoje no formato YYYY-MM-DD em America/Sao_Paulo */
 function todayYmdSP() {
@@ -21,55 +21,35 @@ export default function Principal() {
   const [rows, setRows] = useState([]);
   const [error, setError] = useState("");
 
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  // >>> NOVO: pega o token do AuthContext
-  const { token: ctxToken, isLoggedIn } = useAuth();
-  const token =
-    ctxToken ||
-    localStorage.getItem("token") ||
-    sessionStorage.getItem("token") ||
-    "";
-
   async function load() {
-    if (!token) {
-      setError("Sem token. Faça login para continuar.");
-      setLoading(false);
-      // Opcional: redirecionar automaticamente
-      // navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
-      return;
-    }
-
-    setLoading(true);
-    setError("");
     try {
-      const res = await fetch(`/api/dashboard/daily-status?date=${date}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      setLoading(true);
+      setError("");
+      const { data } = await api.get("/dashboard/daily-status", {
+        params: { date },
+        // headers e Authorization já vêm do interceptor do api.js
       });
-
-      if (res.status === 401 || res.status === 403) {
-        setError("Sessão expirada ou sem permissão. Entre novamente.");
-        setRows([]);
-        return;
+      setRows(data?.data || []);
+    } catch (err) {
+      console.error(err);
+      if (err.response) {
+        const msg =
+          typeof err.response.data === "string"
+            ? err.response.data
+            : err.response.data?.error || "Erro na API";
+        setError(`HTTP ${err.response.status}: ${msg}`);
+      } else {
+        setError(err.message || "Falha ao carregar a Dashboard.");
       }
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const json = await res.json();
-      setRows(json.data || []);
-    } catch (e) {
-      console.error(e);
-      setError("Falha ao carregar a Dashboard.");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    // só tenta carregar quando estiver logado ou se houver token persistido
-    if (isLoggedIn || token) load();
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date, isLoggedIn, token]);
+  }, [date]);
 
   const filtered = useMemo(() => {
     let data = rows;
@@ -90,16 +70,33 @@ export default function Principal() {
   return (
     <div style={{ padding: 24, display: "grid", gap: 16 }}>
       {/* Header / Filtros */}
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "end", justifyContent: "space-between" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 12,
+          flexWrap: "wrap",
+          alignItems: "end",
+          justifyContent: "space-between",
+        }}
+      >
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Principal</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>
+            Principal
+          </h1>
           <div style={{ opacity: 0.7, fontSize: 13 }}>
             Status dos relatórios diários em{" "}
             {new Date(date + "T00:00:00").toLocaleDateString("pt-BR")}
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
           <label style={{ fontSize: 14 }}>
             Data:&nbsp;
             <input
@@ -110,7 +107,14 @@ export default function Principal() {
             />
           </label>
 
-          <label style={{ fontSize: 14, display: "flex", alignItems: "center", gap: 6 }}>
+          <label
+            style={{
+              fontSize: 14,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
             <input
               type="checkbox"
               checked={onlyPending}
@@ -126,14 +130,28 @@ export default function Principal() {
             style={{ padding: "6px 10px", minWidth: 200 }}
           />
 
-          <button onClick={load} title="Atualizar" style={{ padding: "6px 12px", border: "1px solid #ccc", cursor: "pointer" }}>
+          <button
+            onClick={load}
+            title="Atualizar"
+            style={{
+              padding: "6px 12px",
+              border: "1px solid #ccc",
+              cursor: "pointer",
+            }}
+          >
             Atualizar
           </button>
         </div>
       </div>
 
       {/* Cards de resumo */}
-      <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
+      <div
+        style={{
+          display: "grid",
+          gap: 12,
+          gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+        }}
+      >
         <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 14 }}>
           <div style={{ fontSize: 12, opacity: 0.7 }}>Total</div>
           <div style={{ fontSize: 26, fontWeight: 700 }}>{totals.total}</div>
@@ -149,7 +167,13 @@ export default function Principal() {
       </div>
 
       {/* Tabela */}
-      <div style={{ border: "1px solid #eee", borderRadius: 12, overflow: "hidden" }}>
+      <div
+        style={{
+          border: "1px solid #eee",
+          borderRadius: 12,
+          overflow: "hidden",
+        }}
+      >
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
           <thead style={{ background: "#fafafa" }}>
             <tr>
@@ -160,73 +184,91 @@ export default function Principal() {
           </thead>
           <tbody>
             {loading && (
-              <tr><td colSpan={3} style={{ padding: 14 }}>Carregando…</td></tr>
+              <tr>
+                <td colSpan={3} style={{ padding: 14 }}>
+                  Carregando…
+                </td>
+              </tr>
             )}
 
             {!loading && error && (
-              <tr><td colSpan={3} style={{ padding: 14, color: "#c00" }}>{error}</td></tr>
+              <tr>
+                <td colSpan={3} style={{ padding: 14, color: "#c00" }}>
+                  {error}
+                </td>
+              </tr>
             )}
 
             {!loading && !error && filtered.length === 0 && (
-              <tr><td colSpan={3} style={{ padding: 14 }}>Nada encontrado.</td></tr>
-            )}
-
-            {!loading && !error && filtered.map((item) => (
-              <tr key={item.id} style={{ borderTop: "1px solid #f0f0f0" }}>
-                <td style={{ padding: 12, fontWeight: 600 }}>{item.nome}</td>
-                <td style={{ padding: 12 }}>
-                  {item.has_daily ? (
-                    <span style={{
-                      display: "inline-block",
-                      padding: "4px 8px",
-                      borderRadius: 999,
-                      background: "#e9f8ee",
-                      border: "1px solid #bfe7cb",
-                      fontSize: 12
-                    }}>
-                      Preenchido
-                    </span>
-                  ) : (
-                    <span style={{
-                      display: "inline-block",
-                      padding: "4px 8px",
-                      borderRadius: 999,
-                      background: "#fff7db",
-                      border: "1px solid #f0dfa6",
-                      fontSize: 12
-                    }}>
-                      Pendente
-                    </span>
-                  )}
-                </td>
-                <td style={{ padding: 12 }}>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {item.has_daily ? (
-                      <Link
-                        to={`/relatorios?pacienteId=${item.id}&data=${date}`}
-                        style={{ padding: "6px 10px", border: "1px solid #ddd" }}
-                      >
-                        Abrir relatório
-                      </Link>
-                    ) : (
-                      <Link
-                        to={`/relatorios?novo=1&pacienteId=${item.id}&data=${date}`}
-                        style={{ padding: "6px 10px", border: "1px solid #ddd" }}
-                      >
-                        Preencher agora
-                      </Link>
-                    )}
-
-                    <Link
-                      to={`/paciente/${item.id}`}
-                      style={{ padding: "6px 10px", border: "1px solid #ddd" }}
-                    >
-                      Abrir prontuário
-                    </Link>
-                  </div>
+              <tr>
+                <td colSpan={3} style={{ padding: 14 }}>
+                  Nada encontrado.
                 </td>
               </tr>
-            ))}
+            )}
+
+            {!loading &&
+              !error &&
+              filtered.map((item) => (
+                <tr key={item.id} style={{ borderTop: "1px solid #f0f0f0" }}>
+                  <td style={{ padding: 12, fontWeight: 600 }}>{item.nome}</td>
+                  <td style={{ padding: 12 }}>
+                    {item.has_daily ? (
+                      <span
+                        style={{
+                          display: "inline-block",
+                          padding: "4px 8px",
+                          borderRadius: 999,
+                          background: "#e9f8ee",
+                          border: "1px solid #bfe7cb",
+                          fontSize: 12,
+                        }}
+                      >
+                        Preenchido
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          display: "inline-block",
+                          padding: "4px 8px",
+                          borderRadius: 999,
+                          background: "#fff7db",
+                          border: "1px solid #f0dfa6",
+                          fontSize: 12,
+                        }}
+                      >
+                        Pendente
+                      </span>
+                    )}
+                  </td>
+                  <td style={{ padding: 12 }}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {item.has_daily ? (
+                        <Link
+                          to={`/relatorios?pacienteId=${item.id}&data=${date}`}
+                          style={{ padding: "6px 10px", border: "1px solid #ddd" }}
+                        >
+                          Abrir relatório
+                        </Link>
+                      ) : (
+                        <Link
+                          to={`/relatorios?novo=1&pacienteId=${item.id}&data=${date}`}
+                          style={{ padding: "6px 10px", border: "1px solid #ddd" }}
+                        >
+                          Preencher agora
+                        </Link>
+                      )}
+
+                      <Link
+                        to={`/paciente/${item.id}`}
+                        style={{ padding: "6px 10px", border: "1px solid #ddd" }}
+                      >
+                        Abrir prontuário
+                      </Link>
+                    </div>
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>
