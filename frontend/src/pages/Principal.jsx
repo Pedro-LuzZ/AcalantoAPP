@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import api from "../api"; // seu axios com baseURL + interceptor
+import api from "../api";
 
 /** Hoje no formato YYYY-MM-DD em America/Sao_Paulo */
 function todayYmdSP() {
@@ -85,7 +85,8 @@ export default function Principal() {
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              style={{ padding: "6px 8px" }}
+              className="input"
+              style={{ width: 150 }}
             />
           </label>
 
@@ -102,10 +103,12 @@ export default function Principal() {
             placeholder="Buscar residente..."
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            style={{ padding: "6px 10px", minWidth: 200 }}
+            className="input"
+            style={{ minWidth: 200 }}
           />
 
-          <button onClick={load} title="Atualizar" style={{ padding: "6px 12px", border: "1px solid #ccc", cursor: "pointer" }}>
+          {/* <<< corrigido: botão com classe do tema */}
+          <button onClick={load} title="Atualizar" className="btn">
             Atualizar
           </button>
         </div>
@@ -113,28 +116,28 @@ export default function Principal() {
 
       {/* Cards de resumo */}
       <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
-        <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 14 }}>
+        <div className="card" style={{ padding: 14 }}>
           <div style={{ fontSize: 12, opacity: 0.7 }}>Total</div>
           <div style={{ fontSize: 26, fontWeight: 700 }}>{totals.total}</div>
         </div>
-        <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 14 }}>
+        <div className="card" style={{ padding: 14 }}>
           <div style={{ fontSize: 12, opacity: 0.7 }}>Preenchidos</div>
           <div style={{ fontSize: 26, fontWeight: 700 }}>{totals.filled}</div>
         </div>
-        <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 14 }}>
+        <div className="card" style={{ padding: 14 }}>
           <div style={{ fontSize: 12, opacity: 0.7 }}>Pendentes</div>
           <div style={{ fontSize: 26, fontWeight: 700 }}>{totals.pending}</div>
         </div>
       </div>
 
       {/* Tabela */}
-      <div style={{ border: "1px solid #eee", borderRadius: 12, overflow: "hidden" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-          <thead style={{ background: "#fafafa" }}>
+      <div className="card" style={{ overflow: "hidden" }}>
+        <table className="table">
+          <thead>
             <tr>
-              <th style={{ textAlign: "left", padding: 12 }}>Residente</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Status</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Ações</th>
+              <th>Residente</th>
+              <th>Status</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -151,55 +154,39 @@ export default function Principal() {
             )}
 
             {!loading && !error && filtered.map((item) => (
-              <tr key={item.id} style={{ borderTop: "1px solid #f0f0f0" }}>
-                <td style={{ padding: 12, fontWeight: 600 }}>{item.nome}</td>
-                <td style={{ padding: 12 }}>
+              <tr key={item.id}>
+                <td style={{ fontWeight: 600 }}>{item.nome}</td>
+                <td>
                   {item.has_daily ? (
-                    <span style={{
-                      display: "inline-block",
-                      padding: "4px 8px",
-                      borderRadius: 999,
-                      background: "#e9f8ee",
-                      border: "1px solid #bfe7cb",
-                      fontSize: 12
-                    }}>
-                      Preenchido
-                    </span>
+                    <span className="badge badge--success">Preenchido</span>
                   ) : (
-                    <span style={{
-                      display: "inline-block",
-                      padding: "4px 8px",
-                      borderRadius: 999,
-                      background: "#fff7db",
-                      border: "1px solid #f0dfa6",
-                      fontSize: 12
-                    }}>
-                      Pendente
-                    </span>
+                    <span className="badge badge--warn">Pendente</span>
                   )}
                 </td>
-                <td style={{ padding: 12 }}>
+                <td>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     {item.has_daily && (
                       <Link
                         to={`/relatorios?pacienteId=${item.id}&data=${date}`}
-                        style={{ padding: "6px 10px", border: "1px solid #ddd" }}
+                        className="btn"
+                        style={{ padding: "6px 10px" }}
                       >
                         Abrir relatório
                       </Link>
                     )}
 
-                    {/* NOVO: sempre disponível */}
                     <Link
                       to={`/relatorios?novo=1&pacienteId=${item.id}&data=${date}`}
-                      style={{ padding: "6px 10px", border: "1px solid #ddd" }}
+                      className="btn"
+                      style={{ padding: "6px 10px" }}
                     >
                       Fazer relatório
                     </Link>
 
                     <Link
                       to={`/paciente/${item.id}`}
-                      style={{ padding: "6px 10px", border: "1px solid #ddd" }}
+                      className="btn"
+                      style={{ padding: "6px 10px" }}
                     >
                       Abrir prontuário
                     </Link>
